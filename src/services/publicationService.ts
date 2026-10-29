@@ -70,13 +70,12 @@ export async function fetchPublications(): Promise<Product[]> {
 
   try {
     const { data, error } = await supabase
-      .from("publications")
+      .from("publicacion")
       .select("*")
       .order("created_at", { ascending: false });
 
     if (!error && data) {
       const remoteItems = (data as PublicationRow[]).map(mapRowToProduct);
-      // Combinar priorizando remotas y evitando duplicados por ID
       const map = new Map<string, Product>();
       localItems.forEach((item) => map.set(item.id, item));
       remoteItems.forEach((item) => map.set(item.id, item));
@@ -91,38 +90,52 @@ export async function fetchPublications(): Promise<Product[]> {
   return localItems;
 }
 
+function buildRowPayload(p: Product, uid: string | null): PublicationRow {
+  return {
+    id: p.id,
+    user_id: uid,
+    title: p.title,
+    category: p.category,
+    condition: p.condition,
+    wants_in_return: p.wantsInReturn,
+    description: p.description || "",
+    zone: p.zone,
+    safe_point_recommended: p.safePointRecommended || null,
+    image: p.image,
+    gallery: p.gallery || [p.image],
+    owner_name: p.owner.name,
+    owner_avatar: p.owner.avatar || null,
+    owner_verified: Boolean(p.owner.verified),
+  };
+}
+
 /**
- * Guarda una nueva publicación en Supabase y en la caché local
+ * Guarda una nueva publicación en Supabase (tabla publicacion) y en la caché local
  */
 export async function savePublication(product: Product, userId?: string): Promise<Product> {
   const localList = getLocalPublications();
+
+  // Obtener el ID de usuario autenticado real desde Supabase si no viene provisto
+  let currentUserId = userId || product.userId;
+  if (!currentUserId) {
+    try {
+      const { data: authData } = await supabase.auth.getUser();
+      currentUserId = authData?.user?.id;
+    } catch {
+      // ignore
+    }
+  }
+
   const productWithUser: Product = {
     ...product,
-    userId: userId || product.userId,
+    userId: currentUserId || product.userId,
   };
 
-  // Actualizar caché local de inmediato
   saveLocalPublications([productWithUser, ...localList.filter((p) => p.id !== product.id)]);
 
   try {
-    const rowPayload: PublicationRow = {
-      id: productWithUser.id,
-      user_id: userId || null,
-      title: productWithUser.title,
-      category: productWithUser.category,
-      condition: productWithUser.condition,
-      wants_in_return: productWithUser.wantsInReturn,
-      description: productWithUser.description || "",
-      zone: productWithUser.zone,
-      safe_point_recommended: productWithUser.safePointRecommended || null,
-      image: productWithUser.image,
-      gallery: productWithUser.gallery || [productWithUser.image],
-      owner_name: productWithUser.owner.name,
-      owner_avatar: productWithUser.owner.avatar || null,
-      owner_verified: Boolean(productWithUser.owner.verified),
-    };
-
-    const { error } = await supabase.from("publications").insert(rowPayload);
+    const rowPayload = buildRowPayload(productWithUser, currentUserId || null);
+    const { error } = await supabase.from("publicacion").insert(rowPayload);
     if (error) {
       console.warn("[publicationService] Error al insertar en Supabase (usando fallback local):", error.message);
     }
@@ -134,16 +147,38 @@ export async function savePublication(product: Product, userId?: string): Promis
 }
 
 /**
+ * Sincroniza publicaciones creadas localmente hacia Supabase cuando la tabla esté disponible
+ */
+export async function syncLocalPublications(): Promise<void> {
+  const localItems = getLocalPublications();
+  if (localItems.length === 0) return;
+
+  try {
+    const { data: authData } = await supabase.auth.getUser();
+    const currentUserId = authData?.user?.id;
+    if (!currentUserId) return;
+
+    for (const item of localItems) {
+      if (!item.userId || item.userId === currentUserId) {
+        const payload = buildRowPayload(item, currentUserId);
+        await supabase.from("publicacion").upsert(payload);
+      }
+    }
+  } catch (err) {
+    console.warn("[publicationService] Error en syncLocalPublications:", err);
+  }
+}
+
+/**
  * Elimina una publicación de Supabase y de la memoria local
  */
 export async function removePublication(productId: string): Promise<boolean> {
-  // Eliminar de caché local
   const current = getLocalPublications();
   const filtered = current.filter((p) => p.id !== productId);
   saveLocalPublications(filtered);
 
   try {
-    const { error } = await supabase.from("publications").delete().eq("id", productId);
+    const { error } = await supabase.from("publicacion").delete().eq("id", productId);
     if (error) {
       console.warn("[publicationService] Error al borrar en Supabase:", error.message);
     }

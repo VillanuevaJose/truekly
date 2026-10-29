@@ -1,5 +1,5 @@
 # ESTADO — Truekly MVP · 2026-10-29
-- Persistencia de publicaciones: guardado en Supabase (tabla publications) y fallback offline en localStorage.
+- Persistencia Supabase: sincronización en public.publicacion con auto-sync de publicaciones locales previas.
 - Eliminación en detalle: los dueños pueden borrar su producto con confirmación segura y retiro inmediato del feed.
 - Feed dinámico: combina catálogo base y publicaciones reales sincronizadas en tiempo real.
 - Wizard de publicación: 3 pasos modulares con compresión de 3 a 9 fotos y trueque libre sin dinero.

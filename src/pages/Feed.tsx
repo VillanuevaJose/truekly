@@ -41,7 +41,7 @@ import {
 import { APP_CONFIG } from "../config/appConfig";
 import { CommunityCard } from "../components/ui/CommunityCard";
 import { PublishModal } from "../components/publish/PublishModal";
-import { fetchPublications, savePublication } from "../services/publicationService";
+import { fetchPublications, savePublication, syncLocalPublications } from "../services/publicationService";
 
 type FeedProps = {
   onNavigateToLanding?: () => void;
@@ -188,11 +188,13 @@ export default function Feed({
 
   useEffect(() => {
     let isMounted = true;
-    fetchPublications().then((customItems) => {
-      if (!isMounted || customItems.length === 0) return;
-      const customIds = new Set(customItems.map((c) => c.id));
-      const baseMock = products.filter((p) => !customIds.has(p.id));
-      setProductList([...customItems, ...baseMock]);
+    syncLocalPublications().finally(() => {
+      fetchPublications().then((customItems) => {
+        if (!isMounted || customItems.length === 0) return;
+        const customIds = new Set(customItems.map((c) => c.id));
+        const baseMock = products.filter((p) => !customIds.has(p.id));
+        setProductList([...customItems, ...baseMock]);
+      });
     });
     return () => {
       isMounted = false;
