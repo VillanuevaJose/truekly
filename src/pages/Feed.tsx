@@ -40,6 +40,7 @@ import {
 } from "../data/mockProducts";
 import { APP_CONFIG } from "../config/appConfig";
 import { CommunityCard } from "../components/ui/CommunityCard";
+import { PublishModal } from "../components/publish/PublishModal";
 
 type FeedProps = {
   onNavigateToLanding?: () => void;
@@ -181,6 +182,8 @@ export default function Feed({
   const [activeCategory, setActiveCategory] = useState<Category | "Todos">("Todos");
   const [activeCondition, setActiveCondition] = useState<Condition | "Todas">("Todas");
   const [query, setQuery] = useState("");
+  const [isPublishOpen, setIsPublishOpen] = useState(false);
+  const [productList, setProductList] = useState<Product[]>(products);
 
   // Toggle "Cerca de mí" (Manual por zona, sin GPS)
   const [nearMeEnabled, setNearMeEnabled] = useState(false);
@@ -228,7 +231,7 @@ export default function Feed({
   }, [user]);
 
   const filteredProducts = useMemo(() => {
-    return products
+    return productList
       .filter((p) => (activeCategory === "Todos" ? true : p.category === activeCategory))
       .filter((p) => (activeCondition === "Todas" ? true : p.condition === activeCondition))
       .filter((p) => {
@@ -245,7 +248,7 @@ export default function Feed({
         );
       })
       .sort((a, b) => Number(b.isFeatured) - Number(a.isFeatured));
-  }, [activeCategory, activeCondition, nearMeEnabled, selectedZone, query]);
+  }, [productList, activeCategory, activeCondition, nearMeEnabled, selectedZone, query]);
 
   const handleLandingClick = (e: React.MouseEvent) => {
     if (onNavigateToLanding) {
@@ -299,10 +302,7 @@ export default function Feed({
                 {/* Botón Publicar (circular 44px, fondo naranja, ícono verde oscuro) */}
                 <button
                   type="button"
-                  onClick={() => {
-                    // TODO: Abrir pantalla o modal de publicar
-                    console.log("TODO: Abrir pantalla o modal de publicar");
-                  }}
+                  onClick={() => setIsPublishOpen(true)}
                   aria-label="Publicar un objeto"
                   title="Publicar"
                   className="flex h-[44px] w-[44px] shrink-0 items-center justify-center rounded-full bg-[#F39200] text-[#0E4F45] shadow-xs transition-transform duration-150 hover:scale-105 active:scale-95 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-jade-500"
@@ -431,7 +431,7 @@ export default function Feed({
               <Repeat size={14} />
               <span>Trueque Libre</span>
               <span className="rounded-full bg-white/20 px-1.5 py-0.2 text-[10px]">
-                {products.length}
+                {productList.length}
               </span>
             </button>
 
@@ -853,6 +853,15 @@ export default function Feed({
           )}
         </main>
       </div>
+
+      <PublishModal
+        isOpen={isPublishOpen}
+        onClose={() => setIsPublishOpen(false)}
+        onPublishSuccess={(newProduct) => {
+          setProductList((prev) => [newProduct, ...prev]);
+        }}
+        onRequireAuth={onOpenAuth}
+      />
     </div>
   );
 }

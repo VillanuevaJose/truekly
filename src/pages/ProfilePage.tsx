@@ -16,6 +16,7 @@ import {
   EyeOff,
 } from "lucide-react";
 import { useAuth } from "../context/AuthContext";
+import { PublishModal } from "../components/publish/PublishModal";
 
 type ProfilePageProps = {
   onBack?: () => void;
@@ -85,6 +86,7 @@ function maskEmailAddress(email: string): string {
 export default function ProfilePage({ onBack, onNavigateToFeed }: ProfilePageProps) {
   const { user, logout } = useAuth();
   const [activeTab, setActiveTab] = useState<ProfileTab>("publicaciones");
+  const [isPublishOpen, setIsPublishOpen] = useState(false);
 
   const initials = useMemo(() => {
     if (!user) return "TK";
@@ -227,9 +229,7 @@ export default function ProfilePage({ onBack, onNavigateToFeed }: ProfilePagePro
               <div className="flex items-center gap-2.5">
                 <button
                   type="button"
-                  onClick={() => {
-                    window.location.hash = "#feed";
-                  }}
+                  onClick={() => setIsPublishOpen(true)}
                   className="inline-flex h-9 items-center gap-1.5 rounded-xl bg-jade-600 px-4 text-xs font-semibold text-white shadow-xs transition hover:bg-jade-700 focus-visible:outline-2 focus-visible:outline-jade-500"
                 >
                   <Plus className="h-4 w-4" aria-hidden="true" />
@@ -286,9 +286,7 @@ export default function ProfilePage({ onBack, onNavigateToFeed }: ProfilePagePro
                 <div className="mt-1 flex items-center justify-center py-0.5">
                   <button
                     type="button"
-                    onClick={() => {
-                      window.location.hash = "#feed";
-                    }}
+                    onClick={() => setIsPublishOpen(true)}
                     title="Publica algo para comenzar a recibir calificaciones"
                     aria-label="Publicar un artículo para obtener reputación"
                     className="flex h-7 w-7 items-center justify-center rounded-full bg-amber-500/15 text-amber-700 border border-amber-300 hover:bg-amber-500 hover:text-white transition-all shadow-xs"
@@ -383,9 +381,7 @@ export default function ProfilePage({ onBack, onNavigateToFeed }: ProfilePagePro
                 </p>
                 <button
                   type="button"
-                  onClick={() => {
-                    window.location.hash = "#feed";
-                  }}
+                  onClick={() => setIsPublishOpen(true)}
                   className="mt-5 inline-flex items-center gap-1.5 rounded-xl bg-jade-600 px-4 py-2 text-xs font-semibold text-white shadow-xs transition hover:bg-jade-700"
                 >
                   <Plus className="h-4 w-4" aria-hidden="true" />
@@ -513,6 +509,18 @@ export default function ProfilePage({ onBack, onNavigateToFeed }: ProfilePagePro
           )}
         </div>
       </main>
+
+      <PublishModal
+        isOpen={isPublishOpen}
+        onClose={() => setIsPublishOpen(false)}
+        onPublishSuccess={() => {
+          if (onNavigateToFeed) {
+            onNavigateToFeed();
+          } else {
+            window.location.hash = "#feed";
+          }
+        }}
+      />
     </div>
   );
 }
