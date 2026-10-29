@@ -1,0 +1,15 @@
+# Registro de Decisiones de Arquitectura y Diseño — Truekly
+
+- 2026-09-19 | Dirección visual: Editorial cálido con canvas #FAF8F4, acento terracota #C2410C y serif humanista.
+- 2026-09-19 | Stack: React 19 + TypeScript + Vite + Tailwind CSS + Lucide Icons para máxima fluidez a 144fps.
+- 2026-09-19 | Dominio de mercado: Perú (es-PE), moneda en Soles (PEN S/), zonas Lima / Arequipa / Cusco con puntos seguros de intercambio.
+- 2026-09-19 | Separación de contenidos: catálogo y seed de publicaciones en data/seed.ts con tipado estricto Zod/TS.
+- 2026-09-19 | Modelo de trueque: equiparación de valor referencial (S/) con cálculo de brecha equitativa y compensación mixta opcional.
+- 2026-09-19 | Accesibilidad: focus trap en modales, navegación por teclado, contraste WCAG AA/AAA y prefers-reduced-motion.
+- 2026-10-11 | Tipografía: unificación total en 'Plus Jakarta Sans' autoalojada en .woff2 con fallback nativo, eliminando Fraunces/Manrope/Newsreader.
+- 2026-10-11 | Ubicación: eliminación de menciones fijas a 'Chimbote' en interfaz, resolviendo zonas y ciudades desde configuración y modelo de datos.
+- 2026-10-22 | Autenticación: uso de Supabase Auth nativo (signUp + verifyOtp) y trigger sincronizador a public.usuario en lugar de Edge Functions / EmailJS externos.
+- 2026-10-28 | Mascota e identidad: adopción de la nutria en silueta plana sin cara como mascota oficial (asociación con trueque y confianza UX), reemplazando ilustraciones de personas.
+- 2026-10-28 | Header con sesión: botón '+' (#F39200) de 44px y avatar 40px con iniciales/foto y dropdown de cuenta, sincronizado vía AuthContext sin flash.
+- 2026-10-28 | Integración Supabase: tabla profiles vinculada a auth.users, buckets privados (selfies, dni-fotos), vista pública sin DNI ni correo, y sesión persistente por onAuthStateChange.
+- 2026-10-29 | Alcance geográfico: eliminación del concepto 'trueque vecinal'; el intercambio es entre personas de la misma ciudad o interurbano según publicaciones.
