@@ -5,6 +5,8 @@ import {
   FileCheck2,
   ArrowRight,
   ArrowLeftRight,
+  AlertTriangle,
+  X,
 } from "lucide-react";
 import { esPE as t } from "../i18n/es-PE";
 import { products, type Product } from "../data/mockProducts";
@@ -83,6 +85,21 @@ export default function Landing({ onNavigateToFeed, onOpenAuth }: LandingProps) 
   const [isScrolled, setIsScrolled] = useState(false);
   const [heroMounted, setHeroMounted] = useState(false);
   const [parallaxOffset, setParallaxOffset] = useState(0);
+
+  // Notificación flotante de estado / portafolio (descartable con X)
+  const [showDemoNotice, setShowDemoNotice] = useState(() => {
+    if (typeof window === "undefined") return true;
+    return !sessionStorage.getItem("truekly_demo_notice_dismissed");
+  });
+
+  const handleDismissNotice = () => {
+    setShowDemoNotice(false);
+    try {
+      sessionStorage.setItem("truekly_demo_notice_dismissed", "1");
+    } catch {
+      // ignore
+    }
+  };
 
   // Observadores de scroll para reveals de sección
   const [howItWorksVisible, setHowItWorksVisible] = useState(false);
@@ -198,6 +215,39 @@ export default function Landing({ onNavigateToFeed, onOpenAuth }: LandingProps) 
 
   return (
     <div className="min-h-screen bg-paper font-sans text-ink antialiased selection:bg-jade-100 selection:text-jade-700">
+      {/* Notificación flotante de estado / portafolio (descartable con X) */}
+      {showDemoNotice && (
+        <aside
+          role="status"
+          aria-live="polite"
+          className="fixed top-4 right-4 left-4 sm:left-auto sm:right-6 z-50 max-w-md rounded-2xl border border-amber-300/80 bg-amber-50/95 p-3.5 shadow-lg backdrop-blur-md transition-all duration-300"
+        >
+          <div className="flex items-start gap-3">
+            <div className="mt-0.5 flex h-7 w-7 shrink-0 items-center justify-center rounded-xl bg-amber-100/90 text-amber-700 border border-amber-200">
+              <AlertTriangle className="h-4 w-4" aria-hidden="true" />
+            </div>
+
+            <div className="flex-1 pr-1 text-xs">
+              <p className="font-semibold text-amber-950">
+                Entorno de demostración y portafolio
+              </p>
+              <p className="mt-0.5 leading-relaxed text-amber-900/90 text-[11px]">
+                Este aplicativo es un prototipo técnico de muestra. Las funciones son de prueba; por favor, no ingreses documentos ni datos oficiales reales.
+              </p>
+            </div>
+
+            <button
+              type="button"
+              onClick={handleDismissNotice}
+              aria-label="Cerrar notificación"
+              className="shrink-0 rounded-lg p-1 text-amber-700/80 hover:bg-amber-100 hover:text-amber-950 transition-colors focus-visible:outline-2 focus-visible:outline-amber-600"
+            >
+              <X className="h-4 w-4" />
+            </button>
+          </div>
+        </aside>
+      )}
+
       {/* 
         HEADER INSTITUCIONAL:
         Transición suave de transparente a blanco con borde hairline al hacer scroll
