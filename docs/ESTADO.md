@@ -1,11 +1,10 @@
 # ESTADO — Truekly MVP · 2026-10-29
-- Pantalla de Perfil (ProfilePage) creada con diseño Linear/Stripe, métricas de confianza y 3 pestañas accesibles.
-- Navegación conectada desde el avatar del header del feed (opciones 'Mi perfil' y 'Mis publicaciones').
-- Notificación de portafolio/demo agregada en Landing: flotante, ámbar, descartable y persistida en sessionStorage.
-- Eliminado concepto de 'trueque vecinal'; alcance redefinido a personas de la misma ciudad o interurbano.
-- Supabase conectado de extremo a extremo: tabla profiles, vista segura, buckets privados y RLS.
-- Registro completo en Supabase Auth con subida de selfie y DNI tras verificación EmailJS.
-- Sesión reactiva vía getSession y onAuthStateChange en AuthContext con caché anti-parpadeo.
-- Inicio de sesión con signInWithPassword, mensajes en español y recuperación de contraseña conectada.
-- Header del feed autenticado sincronizado con profiles (avatar, iniciales y menú de cuenta).
-- Frontend verificado y compilando sin errores (TypeScript + Vite build ok).
+- Perfil blindado: @username como título público, apellidos censurados estilo Yape (Vi*** Co***) y correo ofuscado.
+- Reputación realista: botón '+' para publicar en lugar de rating falso 5.0, confianza inicial 'requiere trueques previos'.
+- Seguridad y cuenta: pestaña privada con badges 'en revisión' y disclaimer explícito bajo Ley N° 29733.
+- Aviso demo en Landing: banner ámbar flotante descartable con persistencia en sessionStorage.
+- Alcance redefinido: personas de la misma ciudad / interurbano, sin menciones a 'trueque vecinal'.
+- Supabase conectado: profiles, buckets privados (selfies, DNIs), RLS estricto y sesión reactiva sin flash.
+- Registro y login: auth completa con verificación OTP/EmailJS, contraseña y sincronización con AuthContext.
+- Header del feed autenticado: avatar interactivo con dropdown a perfil, publicaciones y logout.
+- Compilación y calidad: TypeScript, Oxlint y Vite build verificados al 100% sin errores.

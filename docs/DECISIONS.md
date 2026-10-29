@@ -15,3 +15,4 @@
 - 2026-10-29 | Alcance geográfico: eliminación del concepto 'trueque vecinal'; el intercambio es entre personas de la misma ciudad o interurbano según publicaciones.
 - 2026-10-29 | Aviso legal/demo: notificación flotante superior en Landing (ámbar, compacta, con botón de cierre 'X' y persistencia en sesión) para blindar el portafolio ante la ANPD.
 - 2026-10-29 | Perfil de usuario: interfaz dedicada (ProfilePage) estilo Linear/Stripe con badge de verificación, métricas de confianza y navegación por pestañas ARIA.
+- 2026-10-29 | Privacidad de perfil: @username como encabezado público, enmascaramiento de apellidos estilo Yape (Vi*** Co***), correo censurado y métricas realistas sin reputación previa.

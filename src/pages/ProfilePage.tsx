@@ -12,6 +12,8 @@ import {
   LogOut,
   ExternalLink,
   CheckCircle2,
+  AlertCircle,
+  EyeOff,
 } from "lucide-react";
 import { useAuth } from "../context/AuthContext";
 
@@ -21,6 +23,64 @@ type ProfilePageProps = {
 };
 
 type ProfileTab = "publicaciones" | "trueques" | "seguridad";
+
+/**
+ * Censura estilo Yape en Perú:
+ * Muestra primer y segundo nombre, y oculta los apellidos con las primeras letras y asteriscos
+ * Ej: "Ladi Jose Villanueva Colonia" -> "Ladi Jose Vi*** Co***"
+ */
+function maskNameYape(
+  fullName: string,
+  firstName?: string,
+  secondName?: string,
+  paternalSurname?: string,
+  maternalSurname?: string
+): string {
+  if (firstName && paternalSurname) {
+    const s1 = secondName ? ` ${secondName}` : "";
+    const p1 =
+      paternalSurname.length > 2
+        ? `${paternalSurname.slice(0, 2)}***`
+        : `${paternalSurname}*`;
+    const m1 = maternalSurname
+      ? maternalSurname.length > 2
+        ? ` ${maternalSurname.slice(0, 2)}***`
+        : ` ${maternalSurname}*`
+      : "";
+    return `${firstName}${s1} ${p1}${m1}`.trim();
+  }
+
+  const parts = fullName.trim().split(/\s+/).filter(Boolean);
+  if (parts.length === 0) return "Usuario";
+  if (parts.length === 1) return parts[0];
+  if (parts.length === 2) {
+    const p = parts[1].length > 2 ? `${parts[1].slice(0, 2)}***` : `${parts[1]}*`;
+    return `${parts[0]} ${p}`;
+  }
+  if (parts.length >= 3) {
+    const nombres = parts.slice(0, parts.length - 2).join(" ");
+    const apP = parts[parts.length - 2];
+    const apM = parts[parts.length - 1];
+    const pP = apP.length > 2 ? `${apP.slice(0, 2)}***` : `${apP}*`;
+    const pM = apM.length > 2 ? `${apM.slice(0, 2)}***` : `${apM}*`;
+    return `${nombres} ${pP} ${pM}`;
+  }
+  return fullName;
+}
+
+/**
+ * Censura el correo electrónico para proteger la privacidad del usuario
+ * Ej: "ramirezpomaerickarturo@gmail.com" -> "ra••••••o@gmail.com"
+ */
+function maskEmailAddress(email: string): string {
+  if (!email || !email.includes("@")) return "•••••••@••••.com";
+  const [local, domain] = email.split("@");
+  if (local.length <= 2) return `${local[0]}*@${domain}`;
+  const first = local.slice(0, 2);
+  const last = local.slice(-1);
+  const dots = "•".repeat(Math.min(6, Math.max(3, local.length - 3)));
+  return `${first}${dots}${last}@${domain}`;
+}
 
 export default function ProfilePage({ onBack, onNavigateToFeed }: ProfilePageProps) {
   const { user, logout } = useAuth();
@@ -38,6 +98,21 @@ export default function ProfilePage({ onBack, onNavigateToFeed }: ProfilePagePro
     return (parts[0]?.slice(0, 2) || "TK").toUpperCase();
   }, [user]);
 
+  const yapeMaskedName = useMemo(() => {
+    if (!user) return "";
+    return maskNameYape(
+      user.nombre,
+      user.primerNombre,
+      user.segundoNombre,
+      user.apellidoPaterno,
+      user.apellidoMaterno
+    );
+  }, [user]);
+
+  const maskedEmail = useMemo(() => {
+    return maskEmailAddress(user?.email || "");
+  }, [user?.email]);
+
   const handleBack = () => {
     if (onBack) {
       onBack();
@@ -52,9 +127,6 @@ export default function ProfilePage({ onBack, onNavigateToFeed }: ProfilePagePro
     await logout();
     window.location.hash = "#inicio";
   };
-
-  // Enmascarar DNI para privacidad visual
-  const maskedEmail = user?.email || "correo@ejemplo.com";
 
   if (!user) {
     return (
@@ -122,7 +194,7 @@ export default function ProfilePage({ onBack, onNavigateToFeed }: ProfilePagePro
           <div className="h-24 sm:h-32 bg-gradient-to-r from-jade-700 via-jade-600 to-jade-500 relative">
             <div className="absolute right-4 bottom-3 hidden sm:flex items-center gap-1.5 rounded-full bg-white/20 backdrop-blur-md px-3 py-1 text-[11px] font-medium text-white border border-white/20">
               <ShieldCheck className="h-3.5 w-3.5 text-amber-300" aria-hidden="true" />
-              <span>Cuenta Verificada</span>
+              <span>Identidad en revisión</span>
             </div>
           </div>
 
@@ -134,7 +206,7 @@ export default function ProfilePage({ onBack, onNavigateToFeed }: ProfilePagePro
                   {user.fotoPerfil ? (
                     <img
                       src={user.fotoPerfil}
-                      alt={user.nombre}
+                      alt={user.username || "Usuario"}
                       className="h-full w-full object-cover"
                     />
                   ) : (
@@ -143,7 +215,7 @@ export default function ProfilePage({ onBack, onNavigateToFeed }: ProfilePagePro
                 </div>
                 {user.verificado && (
                   <div
-                    title="Identidad verificada con DNI y Selfie"
+                    title="Registro de identidad enviado"
                     className="absolute bottom-1 right-1 flex h-6 w-6 items-center justify-center rounded-full bg-white text-jade-600 shadow-xs border border-line"
                   >
                     <CheckCircle2 className="h-5 w-5 fill-jade-500 text-white" aria-hidden="true" />
@@ -156,7 +228,6 @@ export default function ProfilePage({ onBack, onNavigateToFeed }: ProfilePagePro
                 <button
                   type="button"
                   onClick={() => {
-                    // TODO: Abrir modal de publicación
                     window.location.hash = "#feed";
                   }}
                   className="inline-flex h-9 items-center gap-1.5 rounded-xl bg-jade-600 px-4 text-xs font-semibold text-white shadow-xs transition hover:bg-jade-700 focus-visible:outline-2 focus-visible:outline-jade-500"
@@ -167,31 +238,31 @@ export default function ProfilePage({ onBack, onNavigateToFeed }: ProfilePagePro
               </div>
             </div>
 
-            {/* Datos de nombre e identificación */}
+            {/* Datos de nombre e identificación (Protegidos por privacidad) */}
             <div>
               <div className="flex flex-wrap items-center gap-2">
-                <h1 className="text-xl sm:text-2xl font-bold text-ink tracking-tight">
-                  {user.nombre}
+                {/* Nombre de usuario visible como titular principal para evitar doxxing/búsquedas en redes */}
+                <h1 className="text-xl sm:text-2xl font-bold text-ink tracking-tight font-mono">
+                  {user.username ? `@${user.username}` : user.nombre}
                 </h1>
-                {user.username && (
-                  <span className="rounded-md bg-paper px-2 py-0.5 text-xs font-mono text-sage-500 border border-line">
-                    @{user.username}
-                  </span>
-                )}
+                <span className="inline-flex items-center gap-1 rounded-full bg-amber-50 px-2.5 py-0.5 text-[11px] font-medium text-amber-800 border border-amber-200">
+                  <ShieldCheck className="h-3 w-3 text-amber-600" aria-hidden="true" />
+                  <span>Identidad en revisión</span>
+                </span>
               </div>
 
-              <p className="mt-1 flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-sage-500">
+              <p className="mt-1.5 flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-sage-500">
                 <span className="inline-flex items-center gap-1">
                   <MapPin className="h-3.5 w-3.5 text-sage-400" aria-hidden="true" />
-                  <span>Chimbote, Perú</span>
+                  <span>Perú</span>
                 </span>
                 <span className="inline-flex items-center gap-1">
                   <Calendar className="h-3.5 w-3.5 text-sage-400" aria-hidden="true" />
                   <span>Miembro activo</span>
                 </span>
-                <span className="inline-flex items-center gap-1 text-jade-600 font-medium">
-                  <ShieldCheck className="h-3.5 w-3.5" aria-hidden="true" />
-                  <span>DNI y Selfie validados</span>
+                <span className="inline-flex items-center gap-1 text-sage-500">
+                  <EyeOff className="h-3.5 w-3.5 text-sage-400" aria-hidden="true" />
+                  <span>Nombre real oculto por privacidad</span>
                 </span>
               </p>
             </div>
@@ -209,20 +280,32 @@ export default function ProfilePage({ onBack, onNavigateToFeed }: ProfilePagePro
 
               <div>
                 <div className="flex items-center justify-center gap-1 text-xs text-sage-500">
-                  <Star className="h-3.5 w-3.5 fill-amber-400 text-amber-400" aria-hidden="true" />
+                  <Star className="h-3.5 w-3.5 text-sage-400" aria-hidden="true" />
                   <span>Calificación</span>
                 </div>
-                <p className="mt-1 text-lg sm:text-xl font-bold text-ink tabular-nums">5.0</p>
-                <span className="text-[10px] text-sage-400">reputación inicial</span>
+                <div className="mt-1 flex items-center justify-center py-0.5">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      window.location.hash = "#feed";
+                    }}
+                    title="Publica algo para comenzar a recibir calificaciones"
+                    aria-label="Publicar un artículo para obtener reputación"
+                    className="flex h-7 w-7 items-center justify-center rounded-full bg-amber-500/15 text-amber-700 border border-amber-300 hover:bg-amber-500 hover:text-white transition-all shadow-xs"
+                  >
+                    <Plus className="h-4 w-4 stroke-[2.5]" aria-hidden="true" />
+                  </button>
+                </div>
+                <span className="text-[10px] text-sage-500 font-medium">Sin reputación, publica algo</span>
               </div>
 
               <div>
                 <div className="flex items-center justify-center gap-1 text-xs text-sage-500">
-                  <ShieldCheck className="h-3.5 w-3.5 text-jade-600" aria-hidden="true" />
+                  <ShieldCheck className="h-3.5 w-3.5 text-sage-400" aria-hidden="true" />
                   <span>Confianza</span>
                 </div>
-                <p className="mt-1 text-lg sm:text-xl font-bold text-jade-600">Alta</p>
-                <span className="text-[10px] text-sage-400">identidad validada</span>
+                <p className="mt-1 text-xs sm:text-sm font-semibold text-sage-600">Sin confianza todavía</p>
+                <span className="text-[10px] text-sage-400">requiere trueques previos</span>
               </div>
             </div>
           </div>
@@ -301,7 +384,6 @@ export default function ProfilePage({ onBack, onNavigateToFeed }: ProfilePagePro
                 <button
                   type="button"
                   onClick={() => {
-                    // TODO: Abrir modal de publicación
                     window.location.hash = "#feed";
                   }}
                   className="mt-5 inline-flex items-center gap-1.5 rounded-xl bg-jade-600 px-4 py-2 text-xs font-semibold text-white shadow-xs transition hover:bg-jade-700"
@@ -336,53 +418,86 @@ export default function ProfilePage({ onBack, onNavigateToFeed }: ProfilePagePro
             </div>
           )}
 
-          {/* TAB 3: SEGURIDAD Y CUENTA */}
+          {/* TAB 3: SEGURIDAD Y CUENTA (Privacidad protegida estilo Yape) */}
           {activeTab === "seguridad" && (
             <div id="panel-seguridad" role="tabpanel" className="space-y-4">
               <div className="rounded-2xl border border-line bg-white p-5 sm:p-6 space-y-5">
-                <div>
-                  <h3 className="text-sm font-semibold text-ink">Datos de Identidad y Contacto</h3>
-                  <p className="text-xs text-sage-500">
-                    Tu información se encuentra protegida bajo la Ley N° 29733 de Protección de Datos Personales.
-                  </p>
+                <div className="flex items-start justify-between gap-4">
+                  <div>
+                    <h3 className="text-sm font-semibold text-ink">Datos de Identidad (Panel Privado)</h3>
+                    <p className="text-xs text-sage-500">
+                      Esta sección solo la puedes ver tú. Tus apellidos y correo están protegidos bajo la Ley N° 29733.
+                    </p>
+                  </div>
+                  <span className="hidden sm:inline-flex items-center gap-1 text-[11px] text-sage-500 font-medium bg-paper px-2.5 py-1 rounded-lg border border-line">
+                    <Lock className="h-3 w-3 text-sage-400" />
+                    <span>Solo visible por ti</span>
+                  </span>
                 </div>
 
                 <div className="grid gap-3 sm:grid-cols-2">
+                  {/* Nombre censurado estilo Yape */}
                   <div className="rounded-xl border border-line bg-paper/50 p-3.5">
-                    <span className="block text-[11px] font-medium text-sage-500">Nombre registrado según RENIEC</span>
-                    <span className="mt-1 block text-xs font-semibold text-ink">{user.nombre}</span>
+                    <span className="block text-[11px] font-medium text-sage-500">
+                      Nombre oficial (Censura de privacidad)
+                    </span>
+                    <span className="mt-1 block text-xs font-semibold text-ink">
+                      {yapeMaskedName}
+                    </span>
+                    <span className="mt-0.5 block text-[10px] text-sage-400">
+                      Apellidos protegidos para evitar búsquedas externas
+                    </span>
                   </div>
 
+                  {/* Correo censurado */}
                   <div className="rounded-xl border border-line bg-paper/50 p-3.5">
-                    <span className="block text-[11px] font-medium text-sage-500">Correo electrónico verificado</span>
+                    <span className="block text-[11px] font-medium text-sage-500">
+                      Correo electrónico vinculado
+                    </span>
                     <div className="mt-1 flex items-center justify-between">
-                      <span className="text-xs font-semibold text-ink truncate">{maskedEmail}</span>
+                      <span className="text-xs font-semibold text-ink font-mono">{maskedEmail}</span>
                       <span className="inline-flex items-center gap-1 text-[10px] font-semibold text-jade-600">
                         <CheckCircle2 className="h-3 w-3" aria-hidden="true" />
                         <span>Verificado</span>
                       </span>
                     </div>
-                  </div>
-
-                  <div className="rounded-xl border border-line bg-paper/50 p-3.5">
-                    <span className="block text-[11px] font-medium text-sage-500">Validación biométrica</span>
-                    <span className="mt-1 inline-flex items-center gap-1 text-xs font-semibold text-jade-600">
-                      <ShieldCheck className="h-3.5 w-3.5" aria-hidden="true" />
-                      <span>DNI frontal + Selfie confirmados</span>
+                    <span className="mt-0.5 block text-[10px] text-sage-400">
+                      Tu correo nunca es público en la plataforma
                     </span>
                   </div>
 
+                  {/* Validación biométrica en revisión */}
                   <div className="rounded-xl border border-line bg-paper/50 p-3.5">
-                    <span className="block text-[11px] font-medium text-sage-500">Nombre de usuario público</span>
+                    <span className="block text-[11px] font-medium text-sage-500">
+                      Validación de identidad física
+                    </span>
+                    <span className="mt-1 inline-flex items-center gap-1 text-xs font-semibold text-amber-700">
+                      <AlertCircle className="h-3.5 w-3.5 text-amber-600" aria-hidden="true" />
+                      <span>DNI frontal + Selfie (En revisión)</span>
+                    </span>
+                    <span className="mt-0.5 block text-[10px] text-sage-400">
+                      Almacenado de forma privada en servidores encriptados
+                    </span>
+                  </div>
+
+                  {/* Nombre de usuario público */}
+                  <div className="rounded-xl border border-line bg-paper/50 p-3.5">
+                    <span className="block text-[11px] font-medium text-sage-500">
+                      Identificador visible en el feed
+                    </span>
                     <span className="mt-1 block text-xs font-mono font-semibold text-ink">
                       @{user.username || "usuario"}
+                    </span>
+                    <span className="mt-0.5 block text-[10px] text-sage-400">
+                      Este es el único identificador que verán los demás usuarios
                     </span>
                   </div>
                 </div>
 
                 <div className="border-t border-line pt-4 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
-                  <div className="text-xs text-sage-500">
-                    <span>Sesión activa de forma segura vía Supabase Auth.</span>
+                  <div className="text-xs text-sage-500 flex items-center gap-1.5">
+                    <ShieldCheck className="h-4 w-4 text-jade-600" />
+                    <span>Sesión cifrada y protegida vía Supabase Auth.</span>
                   </div>
                   <button
                     type="button"
