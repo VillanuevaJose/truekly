@@ -135,7 +135,7 @@ export async function savePublication(product: Product, userId?: string): Promis
 
   try {
     const rowPayload = buildRowPayload(productWithUser, currentUserId || null);
-    const { error } = await supabase.from("publicacion").insert(rowPayload);
+    const { error } = await supabase.from("publicacion").upsert(rowPayload);
     if (error) {
       console.warn("[publicationService] Error al insertar en Supabase (usando fallback local):", error.message);
     }

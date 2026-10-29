@@ -174,34 +174,44 @@ export const PublicationDetail: React.FC<PublicationDetailProps> = ({
 
             {/* Reseñas del propietario */}
             <div className="rounded-2xl border border-[#E5DFD3] bg-white p-5 shadow-sm">
-              <div className="flex items-center justify-between mb-4">
+              <div className="flex items-center justify-between mb-3">
                 <h2 className="text-sm font-bold text-[#16201C]">
-                  Reseñas del miembro ({product.owner.reviews?.length || 2})
+                  Reseñas del miembro ({product.owner.reviews?.length || 0})
                 </h2>
-                <div className="flex items-center gap-1 text-xs text-[#6B7A72]">
-                  <Star className="h-3.5 w-3.5 fill-[#E8A33D] text-[#E8A33D]" />
-                  <span className="font-semibold text-[#16201C]">{product.rating}</span> de 5
-                </div>
+                {product.owner.reviews && product.owner.reviews.length > 0 ? (
+                  <div className="flex items-center gap-1 text-xs text-[#6B7A72]">
+                    <Star className="h-3.5 w-3.5 fill-[#E8A33D] text-[#E8A33D]" />
+                    <span className="font-semibold text-[#16201C]">{product.rating}</span> de 5
+                  </div>
+                ) : (
+                  <span className="text-[11px] font-medium text-[#6B7A72]">Sin calificaciones</span>
+                )}
               </div>
 
-              <div className="space-y-3">
-                {(product.owner.reviews || [
-                  { reviewer: "María G.", comment: "Excelente persona, producto tal como se describe.", rating: 5 },
-                  { reviewer: "Carlos M.", comment: "Buen intercambio, muy puntual en el punto acordado.", rating: 4.8 },
-                ]).map((rev, i) => (
-                  <div key={i} className="border-t border-[#E5DFD3] pt-3 first:border-none first:pt-0">
-                    <div className="flex items-center justify-between text-xs">
-                      <span className="font-semibold text-[#16201C]">{rev.reviewer}</span>
-                      <div className="flex items-center text-[#E8A33D]">
-                        {"★".repeat(Math.round(rev.rating))}
+              {product.owner.reviews && product.owner.reviews.length > 0 ? (
+                <div className="space-y-3">
+                  {product.owner.reviews.map((rev, i) => (
+                    <div key={i} className="border-t border-[#E5DFD3] pt-3 first:border-none first:pt-0">
+                      <div className="flex items-center justify-between text-xs">
+                        <span className="font-semibold text-[#16201C]">{rev.reviewer}</span>
+                        <div className="flex items-center text-[#E8A33D]">
+                          {"★".repeat(Math.round(rev.rating))}
+                        </div>
                       </div>
+                      <p className="mt-1 text-xs text-[#6B7A72] leading-relaxed">
+                        "{rev.comment}"
+                      </p>
                     </div>
-                    <p className="mt-1 text-xs text-[#6B7A72] leading-relaxed">
-                      "{rev.comment}"
-                    </p>
-                  </div>
-                ))}
-              </div>
+                  ))}
+                </div>
+              ) : (
+                <div className="rounded-xl bg-[#F7F8F6] p-3.5 text-center border border-[#E5DFD3]">
+                  <p className="text-xs text-[#6B7A72]">Aún no tiene reseñas ni comentarios</p>
+                  <p className="mt-0.5 text-[11px] text-[#6B7A72]/80">
+                    Las calificaciones se obtienen al completar trueques presenciales con éxito.
+                  </p>
+                </div>
+              )}
             </div>
 
           </div>

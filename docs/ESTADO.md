@@ -1,10 +1,10 @@
 # ESTADO — Truekly MVP · 2026-10-29
-- Persistencia Supabase: sincronización en public.publicacion con auto-sync de publicaciones locales previas.
+- Reseñas corregidas: eliminadas reseñas ficticias ('María G.', 'Carlos M.'); estado realista sin calificaciones previas.
+- Persistencia Supabase: sincronización en public.publicacion con auto-sync y permisos de API (GRANT anon/auth).
 - Eliminación en detalle: los dueños pueden borrar su producto con confirmación segura y retiro inmediato del feed.
 - Feed dinámico: combina catálogo base y publicaciones reales sincronizadas en tiempo real.
 - Wizard de publicación: 3 pasos modulares con compresión de 3 a 9 fotos y trueque libre sin dinero.
 - Perfil blindado: @username como título público, apellidos censurados estilo Yape y correo ofuscado.
-- Reputación realista: botón '+' para publicar en lugar de rating falso, estado de confianza inicial.
 - Supabase conectado: profiles, buckets privados (selfies, DNIs), RLS estricto y sesión reactiva.
 - Registro y login: auth completa con verificación OTP/EmailJS, contraseña y sincronización con AuthContext.
 - Header del feed autenticado: avatar interactivo con dropdown a perfil, publicaciones y logout.
