@@ -6,16 +6,20 @@ import Feed from "./pages/Feed";
 import { PublicationDetail } from "./pages/PublicationDetail";
 import LoginPage from "./pages/auth/LoginPage";
 import RegisterPage from "./pages/auth/RegisterPage";
+import ProfilePage from "./pages/ProfilePage";
 import { products, type Product } from "./data/mockProducts";
 
 /**
- * Vista Principal unificada (Landing / Feed / Detalle Producto)
- * Compatible con la navegación actual y enrutada hacia /ingresar y /registro
+ * Vista Principal unificada (Landing / Feed / Detalle Producto / Perfil)
+ * Compatible con la navegación actual y enrutada hacia /ingresar, /registro y /perfil
  */
 function MainView() {
   const navigate = useNavigate();
 
-  const [currentView, setCurrentView] = useState<"landing" | "feed" | "product">(() => {
+  const [currentView, setCurrentView] = useState<"landing" | "feed" | "product" | "profile">(() => {
+    if (window.location.hash === "#perfil") {
+      return "profile";
+    }
     if (window.location.hash.startsWith("#producto/")) {
       return "product";
     }
@@ -41,6 +45,10 @@ function MainView() {
           setCurrentView("product");
           return;
         }
+      }
+      if (hash === "#perfil") {
+        setCurrentView("profile");
+        return;
       }
       if (hash === "#feed") {
         setCurrentView("feed");
@@ -95,6 +103,15 @@ function MainView() {
     );
   }
 
+  if (currentView === "profile") {
+    return (
+      <ProfilePage
+        onBack={navigateToFeed}
+        onNavigateToFeed={navigateToFeed}
+      />
+    );
+  }
+
   if (currentView === "feed") {
     return (
       <Feed
@@ -119,6 +136,7 @@ export function App() {
       <BrowserRouter>
         <Routes>
           <Route path="/" element={<MainView />} />
+          <Route path="/perfil" element={<ProfilePage />} />
           <Route path="/ingresar" element={<LoginPage />} />
           <Route path="/registro" element={<RegisterPage />} />
           {/* Rutas de compatibilidad directa */}

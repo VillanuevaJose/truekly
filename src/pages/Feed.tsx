@@ -356,8 +356,7 @@ export default function Feed({
                         role="menuitem"
                         onClick={() => {
                           setIsMenuOpen(false);
-                          // TODO: Navegar a Mi perfil
-                          console.log("TODO: Navegar a Mi perfil");
+                          window.location.hash = "#perfil";
                         }}
                         className="flex w-full items-center gap-2.5 rounded-xl px-3 py-2 text-xs font-medium text-ink transition hover:bg-paper focus-visible:outline-2 focus-visible:outline-jade-500"
                       >
@@ -370,8 +369,7 @@ export default function Feed({
                         role="menuitem"
                         onClick={() => {
                           setIsMenuOpen(false);
-                          // TODO: Navegar a Mis publicaciones
-                          console.log("TODO: Navegar a Mis publicaciones");
+                          window.location.hash = "#perfil";
                         }}
                         className="flex w-full items-center gap-2.5 rounded-xl px-3 py-2 text-xs font-medium text-ink transition hover:bg-paper focus-visible:outline-2 focus-visible:outline-jade-500"
                       >

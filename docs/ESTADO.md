@@ -1,5 +1,7 @@
 # ESTADO — Truekly MVP · 2026-10-29
-- Notificación de portafolio/demo agregada en Landing: flotante, ámbar, descartable con 'X' y persistida en sessionStorage.
+- Pantalla de Perfil (ProfilePage) creada con diseño Linear/Stripe, métricas de confianza y 3 pestañas accesibles.
+- Navegación conectada desde el avatar del header del feed (opciones 'Mi perfil' y 'Mis publicaciones').
+- Notificación de portafolio/demo agregada en Landing: flotante, ámbar, descartable y persistida en sessionStorage.
 - Eliminado concepto de 'trueque vecinal'; alcance redefinido a personas de la misma ciudad o interurbano.
 - Supabase conectado de extremo a extremo: tabla profiles, vista segura, buckets privados y RLS.
 - Registro completo en Supabase Auth con subida de selfie y DNI tras verificación EmailJS.

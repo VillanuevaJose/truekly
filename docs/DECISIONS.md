@@ -14,3 +14,4 @@
 - 2026-10-28 | Integración Supabase: tabla profiles vinculada a auth.users, buckets privados (selfies, dni-fotos), vista pública sin DNI ni correo, y sesión persistente por onAuthStateChange.
 - 2026-10-29 | Alcance geográfico: eliminación del concepto 'trueque vecinal'; el intercambio es entre personas de la misma ciudad o interurbano según publicaciones.
 - 2026-10-29 | Aviso legal/demo: notificación flotante superior en Landing (ámbar, compacta, con botón de cierre 'X' y persistencia en sesión) para blindar el portafolio ante la ANPD.
+- 2026-10-29 | Perfil de usuario: interfaz dedicada (ProfilePage) estilo Linear/Stripe con badge de verificación, métricas de confianza y navegación por pestañas ARIA.
