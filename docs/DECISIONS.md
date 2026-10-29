@@ -17,3 +17,4 @@
 - 2026-10-29 | Perfil de usuario: interfaz dedicada (ProfilePage) estilo Linear/Stripe con badge de verificación, métricas de confianza y navegación por pestañas ARIA.
 - 2026-10-29 | Privacidad de perfil: @username como encabezado público, enmascaramiento de apellidos estilo Yape (Vi*** Co***), correo censurado y métricas realistas sin reputación previa.
 - 2026-10-29 | Publicación de artículos: wizard accesible en 3 pasos, compresión de 3 a 9 fotos en cliente, trueque libre sin dinero y sugerencia de puntos seguros.
+- 2026-10-29 | Persistencia y borrado: tabla public.publications con RLS en Supabase, sincronización en feed y eliminación segura por el propietario.

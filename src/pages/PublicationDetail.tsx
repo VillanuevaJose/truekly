@@ -12,8 +12,11 @@ import {
   Info,
   Shield,
   ChevronRight,
+  Trash2,
 } from "lucide-react";
 import { type Product } from "../data/mockProducts";
+import { useAuth } from "../context/AuthContext";
+import { DeleteConfirmModal } from "../components/publish/DeleteConfirmModal";
 
 interface PublicationDetailProps {
   product: Product;
@@ -21,6 +24,7 @@ interface PublicationDetailProps {
   onBack: () => void;
   onSelectProduct: (p: Product) => void;
   onOpenAuth: (mode?: "login" | "register") => void;
+  onDeleteProduct?: (id: string) => Promise<void> | void;
 }
 
 export const PublicationDetail: React.FC<PublicationDetailProps> = ({
@@ -29,11 +33,23 @@ export const PublicationDetail: React.FC<PublicationDetailProps> = ({
   onBack,
   onSelectProduct,
   onOpenAuth,
+  onDeleteProduct,
 }) => {
+  const { user } = useAuth();
   const images = product.gallery && product.gallery.length > 0 ? product.gallery : [product.image];
   const [selectedImage, setSelectedImage] = useState<string>(images[0]);
   const [isSaved, setIsSaved] = useState<boolean>(false);
   const [copiedNotification, setCopiedNotification] = useState<boolean>(false);
+  const [showDeleteModal, setShowDeleteModal] = useState(false);
+  const [isDeleting, setIsDeleting] = useState(false);
+
+  const isOwner = Boolean(
+    user &&
+    ((product.userId && product.userId === user.id) ||
+      product.owner.name === `@${user.username}` ||
+      (user.username && product.owner.name.includes(user.username)) ||
+      product.owner.name === user.nombre)
+  );
 
   React.useEffect(() => {
     const newImages = product.gallery && product.gallery.length > 0 ? product.gallery : [product.image];
@@ -283,20 +299,42 @@ export const PublicationDetail: React.FC<PublicationDetailProps> = ({
                 </div>
               </div>
 
-              {/* Botón CTA principal */}
-              <div className="mt-5">
-                <button
-                  type="button"
-                  onClick={() => onOpenAuth("login")}
-                  className="w-full min-h-[48px] flex items-center justify-center gap-2 rounded-xl bg-[#0F6D5F] px-4 py-3 text-sm font-bold text-white shadow-md hover:bg-[#0c574c] active:scale-[0.98] transition-all focus:outline-none focus-visible:ring-2 focus-visible:ring-[#0F6D5F]"
-                >
-                  <MessageCircle className="h-4 w-4" />
-                  <span>Iniciar sesión para proponer trueque</span>
-                </button>
-                <p className="mt-2 text-center text-[11px] text-[#6B7A72]">
-                  Al contactar, aceptas respetar los puntos seguros recomendados.
-                </p>
-              </div>
+              {/* Botón CTA o Gestión de Propietario */}
+              {isOwner ? (
+                <div className="mt-5 space-y-3">
+                  <div className="rounded-xl border border-jade-300 bg-jade-50/70 p-3 text-center">
+                    <span className="text-xs font-semibold text-jade-800">
+                      Esta es tu publicación activa
+                    </span>
+                    <p className="mt-0.5 text-[11px] text-[#6B7A72]">
+                      Visible en el feed para toda la comunidad.
+                    </p>
+                  </div>
+
+                  <button
+                    type="button"
+                    onClick={() => setShowDeleteModal(true)}
+                    className="w-full min-h-[44px] flex items-center justify-center gap-2 rounded-xl border border-red-200 bg-red-50/70 px-4 py-2.5 text-xs font-bold text-red-600 shadow-2xs hover:bg-red-100 hover:border-red-300 active:scale-[0.98] transition-all focus-visible:outline-2 focus-visible:outline-red-500"
+                  >
+                    <Trash2 className="h-4 w-4" />
+                    <span>Eliminar mi publicación</span>
+                  </button>
+                </div>
+              ) : (
+                <div className="mt-5">
+                  <button
+                    type="button"
+                    onClick={() => onOpenAuth("login")}
+                    className="w-full min-h-[48px] flex items-center justify-center gap-2 rounded-xl bg-[#0F6D5F] px-4 py-3 text-sm font-bold text-white shadow-md hover:bg-[#0c574c] active:scale-[0.98] transition-all focus:outline-none focus-visible:ring-2 focus-visible:ring-[#0F6D5F]"
+                  >
+                    <MessageCircle className="h-4 w-4" />
+                    <span>Iniciar sesión para proponer trueque</span>
+                  </button>
+                  <p className="mt-2 text-center text-[11px] text-[#6B7A72]">
+                    Al contactar, aceptas respetar los puntos seguros recomendados.
+                  </p>
+                </div>
+              )}
             </div>
 
             {/* Productos relacionados de la misma categoría */}
@@ -337,6 +375,25 @@ export const PublicationDetail: React.FC<PublicationDetailProps> = ({
 
         </div>
       </main>
+
+      <DeleteConfirmModal
+        isOpen={showDeleteModal}
+        isDeleting={isDeleting}
+        itemTitle={product.title}
+        onCancel={() => setShowDeleteModal(false)}
+        onConfirm={async () => {
+          setIsDeleting(true);
+          try {
+            if (onDeleteProduct) {
+              await onDeleteProduct(product.id);
+            }
+            onBack();
+          } finally {
+            setIsDeleting(false);
+            setShowDeleteModal(false);
+          }
+        }}
+      />
     </div>
   );
 };

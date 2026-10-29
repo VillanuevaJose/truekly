@@ -8,6 +8,7 @@ import LoginPage from "./pages/auth/LoginPage";
 import RegisterPage from "./pages/auth/RegisterPage";
 import ProfilePage from "./pages/ProfilePage";
 import { products, type Product } from "./data/mockProducts";
+import { fetchPublications, removePublication } from "./services/publicationService";
 
 /**
  * Vista Principal unificada (Landing / Feed / Detalle Producto / Perfil)
@@ -45,6 +46,14 @@ function MainView() {
           setCurrentView("product");
           return;
         }
+        fetchPublications().then((customs) => {
+          const customFound = customs.find((p) => p.id === id);
+          if (customFound) {
+            setSelectedProduct(customFound);
+            setCurrentView("product");
+          }
+        });
+        return;
       }
       if (hash === "#perfil") {
         setCurrentView("profile");
@@ -99,6 +108,11 @@ function MainView() {
         onBack={navigateToFeed}
         onSelectProduct={handleSelectProduct}
         onOpenAuth={handleOpenAuth}
+        onDeleteProduct={async (id) => {
+          await removePublication(id);
+          setSelectedProduct(null);
+          navigateToFeed();
+        }}
       />
     );
   }

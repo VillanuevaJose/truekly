@@ -41,6 +41,7 @@ import {
 import { APP_CONFIG } from "../config/appConfig";
 import { CommunityCard } from "../components/ui/CommunityCard";
 import { PublishModal } from "../components/publish/PublishModal";
+import { fetchPublications, savePublication } from "../services/publicationService";
 
 type FeedProps = {
   onNavigateToLanding?: () => void;
@@ -184,6 +185,19 @@ export default function Feed({
   const [query, setQuery] = useState("");
   const [isPublishOpen, setIsPublishOpen] = useState(false);
   const [productList, setProductList] = useState<Product[]>(products);
+
+  useEffect(() => {
+    let isMounted = true;
+    fetchPublications().then((customItems) => {
+      if (!isMounted || customItems.length === 0) return;
+      const customIds = new Set(customItems.map((c) => c.id));
+      const baseMock = products.filter((p) => !customIds.has(p.id));
+      setProductList([...customItems, ...baseMock]);
+    });
+    return () => {
+      isMounted = false;
+    };
+  }, []);
 
   // Toggle "Cerca de mí" (Manual por zona, sin GPS)
   const [nearMeEnabled, setNearMeEnabled] = useState(false);
@@ -857,8 +871,9 @@ export default function Feed({
       <PublishModal
         isOpen={isPublishOpen}
         onClose={() => setIsPublishOpen(false)}
-        onPublishSuccess={(newProduct) => {
-          setProductList((prev) => [newProduct, ...prev]);
+        onPublishSuccess={async (newProduct) => {
+          const saved = await savePublication(newProduct, user?.id);
+          setProductList((prev) => [saved, ...prev.filter((p) => p.id !== saved.id)]);
         }}
         onRequireAuth={onOpenAuth}
       />

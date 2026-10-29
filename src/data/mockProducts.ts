@@ -39,6 +39,7 @@ export type Product = {
   gallery?: string[];
   distanceKm?: number;
   safePointRecommended?: string;
+  userId?: string;
 };
 
 export type Community = {
