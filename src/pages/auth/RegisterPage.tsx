@@ -92,6 +92,9 @@ export default function RegisterPage() {
   const [isCheckingUsername, setIsCheckingUsername] = useState(false);
   const [usernameStatus, setUsernameStatus] = useState<"disponible" | "en_uso" | "invalido" | null>(null);
 
+  // Género
+  const [genero, setGenero] = useState<"hombre" | "mujer" | null>(null);
+
   // Credenciales y formulario
   const [email, setEmail] = useState(() => searchParams.get("email") || "");
   const [password, setPassword] = useState("");
@@ -168,6 +171,7 @@ export default function RegisterPage() {
   const isPaso1Valid = Boolean(
     reniecConsulted &&
     hasAllRequiredNames &&
+    genero &&
     usernameStatus === "disponible" &&
     email.trim() &&
     email.includes("@") &&
@@ -479,6 +483,7 @@ export default function RegisterPage() {
             nombre_reniec: nombreCompleto || `${primerNombre} ${apellidoPaterno}`.trim(),
             username: nombreUsuario.trim().toLowerCase(),
             identidad_verificada: true,
+            genero: genero,
           },
         },
       });
@@ -543,6 +548,7 @@ export default function RegisterPage() {
         selfie_path: selfieStoragePath,
         dni_foto_path: dniStoragePath,
         identidad_verificada: true,
+        genero: genero,
       });
 
       if (profileError) {
@@ -914,6 +920,46 @@ export default function RegisterPage() {
                   />
                 </div>
               </div>
+
+              {/* 5b. Género */}
+              <fieldset>
+                <legend className="block text-[11px] font-medium text-ink mb-1">
+                  Género
+                </legend>
+                <div className="inline-flex rounded-xl border border-line overflow-hidden">
+                  <button
+                    type="button"
+                    aria-pressed={genero === "hombre"}
+                    onClick={() => setGenero("hombre")}
+                    className={`flex items-center gap-1.5 px-4 py-2 text-xs font-medium transition-colors duration-200 focus-visible:outline-2 focus-visible:outline-dashed focus-visible:outline-jade-500 ${
+                      genero === "hombre"
+                        ? "bg-jade-500 text-white"
+                        : "bg-white text-ink-soft hover:bg-paper"
+                    }`}
+                  >
+                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" className="h-5 w-5" aria-hidden="true">
+                      <path d="M12 2a3 3 0 1 0 0 6 3 3 0 0 0 0-6ZM9 10a2 2 0 0 0-2 2v1a1 1 0 0 0 1 1h1v7a1 1 0 0 0 1 1h4a1 1 0 0 0 1-1v-7h1a1 1 0 0 0 1-1v-1a2 2 0 0 0-2-2H9Z"/>
+                    </svg>
+                    Hombre
+                  </button>
+                  <div className="w-px bg-line" />
+                  <button
+                    type="button"
+                    aria-pressed={genero === "mujer"}
+                    onClick={() => setGenero("mujer")}
+                    className={`flex items-center gap-1.5 px-4 py-2 text-xs font-medium transition-colors duration-200 focus-visible:outline-2 focus-visible:outline-dashed focus-visible:outline-jade-500 ${
+                      genero === "mujer"
+                        ? "bg-jade-500 text-white"
+                        : "bg-white text-ink-soft hover:bg-paper"
+                    }`}
+                  >
+                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" className="h-5 w-5" aria-hidden="true">
+                      <path d="M12 2a3 3 0 1 0 0 6 3 3 0 0 0 0-6ZM8 10a2 2 0 0 0-2 2v1a1 1 0 0 0 1 1h1l-1.5 4.4a1 1 0 0 0 .95 1.32L9 20.7V21a1 1 0 0 0 1 1h4a1 1 0 0 0 1-1v-.3l1.55.02a1 1 0 0 0 .95-1.32L16 14h1a1 1 0 0 0 1-1v-1a2 2 0 0 0-2-2H8Z"/>
+                    </svg>
+                    Mujer
+                  </button>
+                </div>
+              </fieldset>
 
               {/* 6. Correo Electrónico */}
               <div>
