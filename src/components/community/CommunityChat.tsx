@@ -2,15 +2,12 @@ import React, { useState, useEffect, useRef } from "react";
 import {
   ArrowLeft,
   Users,
-  MapPin,
   Send,
   ShieldCheck,
   Repeat,
   Sparkles,
   CheckCircle2,
   X,
-  ChevronRight,
-  Search,
   Bell,
   Lock,
   LogOut,
@@ -110,8 +107,17 @@ export function CommunityChat({
     ? `${user.primerNombre[0]}${user.apellidoPaterno[0]}`.toUpperCase()
     : (user?.nombre || "TU").slice(0, 2).toUpperCase();
 
+  type Member = {
+    name: string;
+    avatar?: string;
+    initials: string;
+    role: string;
+    verified: boolean;
+    zone: string;
+  };
+
   // Miembros base de la comunidad
-  const baseMembers = [
+  const baseMembers: Member[] = [
     { name: "Carlos Mendoza", initials: "CM", role: "Admin. del grupo", verified: true, zone: "Casco Urbano" },
     { name: "Diana Solís", initials: "DS", role: "Miembro", verified: true, zone: "Nuevo Chimbote" },
     { name: "Miguel Talledo", initials: "MT", role: "Miembro", verified: false, zone: "Miraflores" },
@@ -120,7 +126,7 @@ export function CommunityChat({
   ];
 
   // Solo se incluye al usuario en sesión como miembro si realmente se ha unido
-  const sampleMembers = isJoined
+  const sampleMembers: Member[] = isJoined
     ? [
         {
           name: `${currentUserName} (Tú)`,

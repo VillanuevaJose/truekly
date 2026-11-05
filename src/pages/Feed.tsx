@@ -37,6 +37,7 @@ import {
   type Condition,
   type Zone,
   type Product,
+  type Community,
 } from "../data/mockProducts";
 import { APP_CONFIG } from "../config/appConfig";
 import { CommunityCard } from "../components/ui/CommunityCard";

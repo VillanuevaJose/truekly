@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Users, MapPin, Check, MessageSquare } from "lucide-react";
+import { Users, MapPin, MessageSquare } from "lucide-react";
 import type { Community } from "../../data/mockProducts";
 
 function getInitials(name: string): string {
