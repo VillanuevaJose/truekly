@@ -92,8 +92,9 @@ export default function RegisterPage() {
   const [isCheckingUsername, setIsCheckingUsername] = useState(false);
   const [usernameStatus, setUsernameStatus] = useState<"disponible" | "en_uso" | "invalido" | null>(null);
 
-  // Género
+  // Género y Fecha de Nacimiento
   const [genero, setGenero] = useState<"hombre" | "mujer" | null>(null);
+  const [fechaNacimiento, setFechaNacimiento] = useState<string>("");
 
   // Credenciales y formulario
   const [email, setEmail] = useState(() => searchParams.get("email") || "");
@@ -168,10 +169,37 @@ export default function RegisterPage() {
   const passwordConfirmError =
     confirmPassword && password !== confirmPassword ? "Las contraseñas no coinciden" : null;
 
+  // Cálculo exacto de edad por fecha de nacimiento
+  const calcularEdad = (fechaStr: string): number | null => {
+    if (!fechaStr) return null;
+    const [year, month, day] = fechaStr.split("-").map(Number);
+    if (!year || !month || !day) return null;
+    const hoy = new Date();
+    let e = hoy.getFullYear() - year;
+    const m = hoy.getMonth() + 1 - month;
+    if (m < 0 || (m === 0 && hoy.getDate() < day)) {
+      e--;
+    }
+    return e;
+  };
+
+  const edadCalculada = calcularEdad(fechaNacimiento);
+  const isMenorDeEdad = Boolean(fechaNacimiento && (edadCalculada === null || edadCalculada < 18));
+  const isFechaInvalida = Boolean(fechaNacimiento && (edadCalculada === null || edadCalculada < 0 || edadCalculada > 120));
+  const fechaNacimientoError =
+    fechaNacimiento && isFechaInvalida && !isMenorDeEdad
+      ? "Ingresa una fecha de nacimiento válida"
+      : isMenorDeEdad
+      ? "Debes tener al menos 18 años para registrarte en Truekly."
+      : null;
+
   const isPaso1Valid = Boolean(
     reniecConsulted &&
     hasAllRequiredNames &&
     genero &&
+    fechaNacimiento &&
+    !isMenorDeEdad &&
+    !isFechaInvalida &&
     usernameStatus === "disponible" &&
     email.trim() &&
     email.includes("@") &&
@@ -332,6 +360,10 @@ export default function RegisterPage() {
     if (!isPaso1Valid) {
       if (!hasAllRequiredNames) {
         setError("Completa tus nombres y apellidos.");
+      } else if (!genero) {
+        setError("Selecciona tu género.");
+      } else if (!fechaNacimiento || isMenorDeEdad || (edadCalculada !== null && edadCalculada < 18)) {
+        setError("Debes ser mayor de 18 años para poder registrarte.");
       } else if (usernameStatus !== "disponible") {
         setError("Elige un nombre de usuario válido y disponible.");
       } else if (password !== confirmPassword) {
@@ -484,6 +516,8 @@ export default function RegisterPage() {
             username: nombreUsuario.trim().toLowerCase(),
             identidad_verificada: true,
             genero: genero,
+            fecha_nacimiento: fechaNacimiento || null,
+            edad: edadCalculada || null,
           },
         },
       });
@@ -549,6 +583,8 @@ export default function RegisterPage() {
         dni_foto_path: dniStoragePath,
         identidad_verificada: true,
         genero: genero,
+        fecha_nacimiento: fechaNacimiento || null,
+        edad: edadCalculada || null,
       });
 
       if (profileError) {
@@ -921,45 +957,79 @@ export default function RegisterPage() {
                 </div>
               </div>
 
-              {/* 5b. Género */}
-              <fieldset>
-                <legend className="block text-[11px] font-medium text-ink mb-1">
-                  Género
-                </legend>
-                <div className="inline-flex rounded-xl border border-line overflow-hidden">
-                  <button
-                    type="button"
-                    aria-pressed={genero === "hombre"}
-                    onClick={() => setGenero("hombre")}
-                    className={`flex items-center gap-1.5 px-4 py-2 text-xs font-medium transition-colors duration-200 focus-visible:outline-2 focus-visible:outline-dashed focus-visible:outline-jade-500 ${
-                      genero === "hombre"
-                        ? "bg-jade-500 text-white"
-                        : "bg-white text-ink-soft hover:bg-paper"
+              {/* 5b. Género y Edad */}
+              <div className="grid grid-cols-2 gap-2 items-start">
+                <fieldset>
+                  <legend className="block text-[11px] font-medium text-ink mb-1">
+                    Género
+                  </legend>
+                  <div className="flex h-10 w-full rounded-xl border border-line overflow-hidden">
+                    <button
+                      type="button"
+                      aria-pressed={genero === "hombre"}
+                      onClick={() => setGenero("hombre")}
+                      className={`flex-1 flex items-center justify-center gap-1.5 px-2 text-xs font-medium transition-colors duration-200 focus-visible:outline-2 focus-visible:outline-dashed focus-visible:outline-jade-500 ${
+                        genero === "hombre"
+                          ? "bg-jade-500 text-white"
+                          : "bg-white text-ink-soft hover:bg-paper"
+                      }`}
+                    >
+                      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" className="h-4 w-4 shrink-0" aria-hidden="true">
+                        <path d="M12 2a3 3 0 1 0 0 6 3 3 0 0 0 0-6ZM9 10a2 2 0 0 0-2 2v1a1 1 0 0 0 1 1h1v7a1 1 0 0 0 1 1h4a1 1 0 0 0 1-1v-7h1a1 1 0 0 0 1-1v-1a2 2 0 0 0-2-2H9Z"/>
+                      </svg>
+                      Hombre
+                    </button>
+                    <div className="w-px bg-line shrink-0" />
+                    <button
+                      type="button"
+                      aria-pressed={genero === "mujer"}
+                      onClick={() => setGenero("mujer")}
+                      className={`flex-1 flex items-center justify-center gap-1.5 px-2 text-xs font-medium transition-colors duration-200 focus-visible:outline-2 focus-visible:outline-dashed focus-visible:outline-jade-500 ${
+                        genero === "mujer"
+                          ? "bg-jade-500 text-white"
+                          : "bg-white text-ink-soft hover:bg-paper"
+                      }`}
+                    >
+                      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" className="h-4 w-4 shrink-0" aria-hidden="true">
+                        <path d="M12 2a3 3 0 1 0 0 6 3 3 0 0 0 0-6ZM8 10a2 2 0 0 0-2 2v1a1 1 0 0 0 1 1h1l-1.5 4.4a1 1 0 0 0 .95 1.32L9 20.7V21a1 1 0 0 0 1 1h4a1 1 0 0 0 1-1v-.3l1.55.02a1 1 0 0 0 .95-1.32L16 14h1a1 1 0 0 0 1-1v-1a2 2 0 0 0-2-2H8Z"/>
+                      </svg>
+                      Mujer
+                    </button>
+                  </div>
+                </fieldset>
+
+                <div>
+                  <div className="flex items-center justify-between mb-1">
+                    <label htmlFor="tk-nacimiento" className="block text-[11px] font-medium text-ink truncate">
+                      Fecha de nacimiento
+                    </label>
+                    {edadCalculada !== null && !isMenorDeEdad && !isFechaInvalida && (
+                      <span className="text-[10px] text-jade-600 font-semibold">
+                        {edadCalculada} años
+                      </span>
+                    )}
+                  </div>
+                  <input
+                    id="tk-nacimiento"
+                    name="tk_nacimiento"
+                    type="date"
+                    max={new Date().toISOString().split("T")[0]}
+                    value={fechaNacimiento}
+                    onChange={(e) => setFechaNacimiento(e.target.value)}
+                    className={`w-full h-10 px-3 rounded-xl border text-xs sm:text-sm text-ink outline-none transition-all duration-200 bg-white ${
+                      fechaNacimientoError
+                        ? "border-red-400 bg-red-50/30 focus:border-red-500 focus:ring-2 focus:ring-red-400/20"
+                        : "border-line focus:border-jade-500 focus:ring-2 focus:ring-jade-500/20"
                     }`}
-                  >
-                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" className="h-5 w-5" aria-hidden="true">
-                      <path d="M12 2a3 3 0 1 0 0 6 3 3 0 0 0 0-6ZM9 10a2 2 0 0 0-2 2v1a1 1 0 0 0 1 1h1v7a1 1 0 0 0 1 1h4a1 1 0 0 0 1-1v-7h1a1 1 0 0 0 1-1v-1a2 2 0 0 0-2-2H9Z"/>
-                    </svg>
-                    Hombre
-                  </button>
-                  <div className="w-px bg-line" />
-                  <button
-                    type="button"
-                    aria-pressed={genero === "mujer"}
-                    onClick={() => setGenero("mujer")}
-                    className={`flex items-center gap-1.5 px-4 py-2 text-xs font-medium transition-colors duration-200 focus-visible:outline-2 focus-visible:outline-dashed focus-visible:outline-jade-500 ${
-                      genero === "mujer"
-                        ? "bg-jade-500 text-white"
-                        : "bg-white text-ink-soft hover:bg-paper"
-                    }`}
-                  >
-                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" className="h-5 w-5" aria-hidden="true">
-                      <path d="M12 2a3 3 0 1 0 0 6 3 3 0 0 0 0-6ZM8 10a2 2 0 0 0-2 2v1a1 1 0 0 0 1 1h1l-1.5 4.4a1 1 0 0 0 .95 1.32L9 20.7V21a1 1 0 0 0 1 1h4a1 1 0 0 0 1-1v-.3l1.55.02a1 1 0 0 0 .95-1.32L16 14h1a1 1 0 0 0 1-1v-1a2 2 0 0 0-2-2H8Z"/>
-                    </svg>
-                    Mujer
-                  </button>
+                    required
+                  />
+                  {fechaNacimientoError && (
+                    <p className="mt-0.5 text-[10px] text-red-600 font-medium leading-tight">
+                      {fechaNacimientoError}
+                    </p>
+                  )}
                 </div>
-              </fieldset>
+              </div>
 
               {/* 6. Correo Electrónico */}
               <div>
