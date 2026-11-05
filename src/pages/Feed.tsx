@@ -183,6 +183,7 @@ export default function Feed({
   onSelectProduct,
   onOpenProfile,
 }: FeedProps) {
+  const { user, logout } = useAuth();
   const [activeSection, setActiveSection] = useState<FeedSection>("trueques");
   const [activeCategory, setActiveCategory] = useState<Category | "Todos">("Todos");
   const [activeCondition, setActiveCondition] = useState<Condition | "Todas">("Todas");
@@ -202,7 +203,18 @@ export default function Feed({
     }
   });
 
+  // Si se cierra la sesión mientras se exploraba un chat, cerrarlo de inmediato
+  useEffect(() => {
+    if (!user && selectedCommunityForChat) {
+      setSelectedCommunityForChat(null);
+    }
+  }, [user, selectedCommunityForChat]);
+
   const toggleJoinCommunity = (id: string) => {
+    if (!user) {
+      onOpenAuth?.("login");
+      return;
+    }
     setJoinedCommunityIds((prev) => {
       const next = prev.includes(id) ? prev.filter((item) => item !== id) : [...prev, id];
       try {
@@ -261,7 +273,6 @@ export default function Feed({
   const [nearMeEnabled, setNearMeEnabled] = useState(false);
   const [selectedZone, setSelectedZone] = useState<Zone>("Casco Urbano");
 
-  const { user, logout } = useAuth();
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
 
@@ -570,7 +581,16 @@ export default function Feed({
       </div>
 
       {/* Contenido principal: Sidebar + Grid */}
-      <div className={`mx-auto flex max-w-7xl gap-8 px-4 ${selectedCommunityForChat ? "py-3 sm:py-4" : "py-6 sm:px-8 sm:py-8"}`}>
+      <div className="relative min-h-[600px]">
+        <div
+          className={`mx-auto flex max-w-7xl gap-8 px-4 transition-all duration-200 ${
+            selectedCommunityForChat ? "py-3 sm:py-4" : "py-6 sm:px-8 sm:py-8"
+          } ${
+            activeSection === "comunidades" && !user
+              ? "filter blur-sm select-none pointer-events-none opacity-40"
+              : ""
+          }`}
+        >
         {/* Sidebar izquierdo dinámico según la sección activa (se oculta cuando el chat de comunidad está abierto) */}
         {!(activeSection === "comunidades" && selectedCommunityForChat) && (
           <aside className="hidden w-64 shrink-0 lg:block">
@@ -930,9 +950,15 @@ export default function Feed({
                     <CommunityCard
                       key={comm.id}
                       community={comm}
-                      isJoined={joinedCommunityIds.includes(comm.id)}
+                      isJoined={Boolean(user) && joinedCommunityIds.includes(comm.id)}
                       onToggleJoin={() => toggleJoinCommunity(comm.id)}
-                      onOpenChat={() => setSelectedCommunityForChat(comm)}
+                      onOpenChat={() => {
+                        if (!user) {
+                          onOpenAuth?.("login");
+                          return;
+                        }
+                        setSelectedCommunityForChat(comm);
+                      }}
                     />
                   ))}
                 </div>
@@ -1097,6 +1123,51 @@ export default function Feed({
             </div>
           )}
         </main>
+        </div>
+
+        {/* Modal / Overlay centrado para invitar a iniciar sesión en Comunidades */}
+        {activeSection === "comunidades" && !user && (
+          <div className="absolute inset-0 z-30 flex items-start justify-center pt-16 sm:pt-24 px-4 bg-white/20 backdrop-blur-xs">
+            <div className="sticky top-44 w-full max-w-md rounded-3xl border border-line bg-white/95 p-7 sm:p-8 text-center shadow-2xl backdrop-blur-xl animate-in fade-in zoom-in-95 duration-200">
+              <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-2xl bg-jade-50 text-jade-600 border border-jade-100 shadow-xs mb-4">
+                <Users size={28} />
+              </div>
+
+              <span className="inline-block rounded-full bg-jade-50 px-3 py-1 text-[11px] font-bold uppercase tracking-wider text-jade-700 mb-2">
+                Comunidades Locales de Chimbote
+              </span>
+
+              <h2 className="font-display text-xl sm:text-2xl font-bold text-ink leading-snug">
+                Inicia sesión para acceder a las comunidades
+              </h2>
+
+              <p className="mt-2.5 text-xs sm:text-sm text-sage-600 leading-relaxed">
+                Únete a grupos por temática en Chimbote, chatea en tiempo real con vecinos verificados y coordina trueques directos sin dinero.
+              </p>
+
+              <div className="mt-6 flex flex-col sm:flex-row items-center gap-2.5 justify-center">
+                <button
+                  type="button"
+                  onClick={() => onOpenAuth?.("login")}
+                  className="w-full sm:w-auto flex-1 rounded-full bg-jade-500 px-5 py-2.5 text-xs sm:text-sm font-semibold text-paper shadow-sm hover:bg-jade-600 transition focus-visible:outline-2 focus-visible:outline-jade-500 cursor-pointer"
+                >
+                  Iniciar sesión
+                </button>
+                <button
+                  type="button"
+                  onClick={() => onOpenAuth?.("register")}
+                  className="w-full sm:w-auto flex-1 rounded-full border border-line bg-white px-5 py-2.5 text-xs sm:text-sm font-semibold text-ink hover:bg-paper hover:border-jade-500 transition focus-visible:outline-2 focus-visible:outline-jade-500 cursor-pointer"
+                >
+                  Registrarse gratis
+                </button>
+              </div>
+
+              <p className="mt-4 text-[11px] text-sage-400">
+                Solo toma 1 minuto y es 100% gratuito.
+              </p>
+            </div>
+          </div>
+        )}
       </div>
 
       <PublishModal
