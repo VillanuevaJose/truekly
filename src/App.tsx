@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { BrowserRouter, Routes, Route, useNavigate } from "react-router-dom";
 import { AuthProvider } from "./context/AuthContext";
 import Landing from "./pages/Landing";
@@ -25,6 +25,12 @@ function MainView() {
       return "product";
     }
     return window.location.hash === "#feed" ? "feed" : "landing";
+  });
+
+  const previousViewRef = useRef<"landing" | "feed">("landing");
+  const scrollPositionsRef = useRef<{ landing: number; feed: number }>({
+    landing: 0,
+    feed: 0,
   });
 
   const [selectedProduct, setSelectedProduct] = useState<Product | null>(() => {
@@ -73,29 +79,54 @@ function MainView() {
   const navigateToFeed = () => {
     window.location.hash = "#feed";
     setCurrentView("feed");
-    window.scrollTo({ top: 0, behavior: "smooth" });
+    const targetY = scrollPositionsRef.current.feed;
+    requestAnimationFrame(() => {
+      window.scrollTo({ top: targetY, behavior: "instant" });
+    });
   };
 
   const navigateToLanding = () => {
     window.location.hash = "#inicio";
     setCurrentView("landing");
-    window.scrollTo({ top: 0, behavior: "smooth" });
+    const targetY = scrollPositionsRef.current.landing;
+    requestAnimationFrame(() => {
+      window.scrollTo({ top: targetY, behavior: "instant" });
+    });
+  };
+
+  const handleBackToOrigin = () => {
+    if (previousViewRef.current === "landing") {
+      navigateToLanding();
+    } else {
+      navigateToFeed();
+    }
   };
 
   const handleSelectProduct = (prod: Product) => {
+    if (currentView === "landing" || currentView === "feed") {
+      previousViewRef.current = currentView;
+      scrollPositionsRef.current[currentView] = window.scrollY;
+    }
     setSelectedProduct(prod);
     window.location.hash = `#producto/${prod.id}`;
     setCurrentView("product");
-    window.scrollTo({ top: 0, behavior: "smooth" });
+    window.scrollTo({ top: 0, behavior: "instant" });
   };
 
-  // Redirecciones hacia las nuevas páginas de autenticación
   const handleOpenAuth = (mode: "login" | "register" = "login") => {
     if (mode === "register") {
       navigate("/registro");
     } else {
       navigate("/ingresar");
     }
+  };
+
+  const handleOpenProfileFromOrigin = (origin: "landing" | "feed") => {
+    previousViewRef.current = origin;
+    scrollPositionsRef.current[origin] = window.scrollY;
+    window.location.hash = "#perfil";
+    setCurrentView("profile");
+    window.scrollTo({ top: 0, behavior: "instant" });
   };
 
   if (currentView === "product" && selectedProduct) {
@@ -105,13 +136,13 @@ function MainView() {
         relatedProducts={products.filter(
           (p) => p.id !== selectedProduct.id && p.category === selectedProduct.category
         )}
-        onBack={navigateToFeed}
+        onBack={handleBackToOrigin}
         onSelectProduct={handleSelectProduct}
         onOpenAuth={handleOpenAuth}
         onDeleteProduct={async (id) => {
           await removePublication(id);
           setSelectedProduct(null);
-          navigateToFeed();
+          handleBackToOrigin();
         }}
       />
     );
@@ -120,7 +151,7 @@ function MainView() {
   if (currentView === "profile") {
     return (
       <ProfilePage
-        onBack={navigateToFeed}
+        onBack={handleBackToOrigin}
         onNavigateToFeed={navigateToFeed}
       />
     );
@@ -129,17 +160,25 @@ function MainView() {
   if (currentView === "feed") {
     return (
       <Feed
-        onNavigateToLanding={navigateToLanding}
+        onNavigateToLanding={() => {
+          scrollPositionsRef.current.feed = window.scrollY;
+          navigateToLanding();
+        }}
         onOpenAuth={(mode) => handleOpenAuth(mode || "login")}
         onSelectProduct={handleSelectProduct}
+        onOpenProfile={() => handleOpenProfileFromOrigin("feed")}
       />
     );
   }
 
   return (
     <Landing
-      onNavigateToFeed={navigateToFeed}
+      onNavigateToFeed={() => {
+        scrollPositionsRef.current.landing = window.scrollY;
+        navigateToFeed();
+      }}
       onOpenAuth={() => handleOpenAuth("login")}
+      onOpenProfile={() => handleOpenProfileFromOrigin("landing")}
     />
   );
 }

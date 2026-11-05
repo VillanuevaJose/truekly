@@ -8,6 +8,8 @@ import {
   AlertTriangle,
   X,
 } from "lucide-react";
+import { User, Package, LogOut } from "lucide-react";
+import { useAuth } from "../context/AuthContext";
 import { esPE as t } from "../i18n/es-PE";
 import { products, type Product } from "../data/mockProducts";
 import { PublishIllustration } from "../components/illustrations/PublishIllustration";
@@ -17,6 +19,7 @@ import { TradeIllustration } from "../components/illustrations/TradeIllustration
 type LandingProps = {
   onNavigateToFeed?: () => void;
   onOpenAuth?: () => void;
+  onOpenProfile?: () => void;
 };
 
 /**
@@ -79,7 +82,7 @@ function useMagnetic(reducedMotion: boolean, maxOffset = 6) {
   return ref;
 }
 
-export default function Landing({ onNavigateToFeed, onOpenAuth }: LandingProps) {
+export default function Landing({ onNavigateToFeed, onOpenAuth, onOpenProfile }: LandingProps) {
   const reducedMotion = useReducedMotion();
   const [imgErrors, setImgErrors] = useState<Record<number, boolean>>({});
   const [isScrolled, setIsScrolled] = useState(false);
@@ -100,6 +103,32 @@ export default function Landing({ onNavigateToFeed, onOpenAuth }: LandingProps) 
       // ignore
     }
   };
+
+  const { user, logout } = useAuth();
+  const [isUserMenuOpen, setIsUserMenuOpen] = useState(false);
+  const userMenuRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (!isUserMenuOpen) return;
+    const handleClickOutside = (e: MouseEvent) => {
+      if (userMenuRef.current && !userMenuRef.current.contains(e.target as Node)) {
+        setIsUserMenuOpen(false);
+      }
+    };
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === "Escape") setIsUserMenuOpen(false);
+    };
+    document.addEventListener("mousedown", handleClickOutside);
+    document.addEventListener("keydown", handleKeyDown);
+    return () => {
+      document.removeEventListener("mousedown", handleClickOutside);
+      document.removeEventListener("keydown", handleKeyDown);
+    };
+  }, [isUserMenuOpen]);
+
+  const userInitials = (user?.primerNombre && user?.apellidoPaterno)
+    ? (user.primerNombre.charAt(0) + user.apellidoPaterno.charAt(0)).toUpperCase()
+    : (user?.nombre || "U").slice(0, 2).toUpperCase();
 
   // Observadores de scroll para reveals de sección
   const [howItWorksVisible, setHowItWorksVisible] = useState(false);
@@ -321,14 +350,88 @@ export default function Landing({ onNavigateToFeed, onOpenAuth }: LandingProps) 
           </nav>
 
           <div className="flex items-center gap-3">
-            {onOpenAuth && (
-              <button
-                type="button"
-                onClick={onOpenAuth}
-                className="inline-flex min-h-[44px] items-center justify-center rounded-full border border-ink/[0.12] px-4 py-2 text-xs sm:text-sm font-medium text-ink transition-all duration-200 hover:border-jade-600 hover:text-jade-700 hover:bg-jade-50/50 focus-visible:outline-2 focus-visible:outline-dashed focus-visible:outline-jade-500 focus-visible:outline-offset-4"
-              >
-                Ingresar
-              </button>
+            {user ? (
+              <div className="relative" ref={userMenuRef}>
+                <button
+                  type="button"
+                  onClick={() => setIsUserMenuOpen((prev) => !prev)}
+                  aria-expanded={isUserMenuOpen}
+                  aria-haspopup="true"
+                  aria-label="Menú de cuenta de usuario"
+                  className="flex h-10 w-10 shrink-0 items-center justify-center overflow-hidden rounded-full border border-line shadow-xs transition-transform active:scale-95 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-jade-500"
+                >
+                  {user.fotoPerfil ? (
+                    <img src={user.fotoPerfil} alt={user.nombre} className="h-full w-full object-cover" />
+                  ) : (
+                    <div className="flex h-full w-full items-center justify-center bg-[#0E6B5C] text-xs font-semibold uppercase tracking-wider text-white select-none">
+                      {userInitials}
+                    </div>
+                  )}
+                </button>
+
+                {isUserMenuOpen && (
+                  <div
+                    role="menu"
+                    aria-orientation="vertical"
+                    className="absolute right-0 top-full mt-2 w-56 rounded-2xl border border-line bg-white p-2 shadow-lg z-50 animate-in fade-in zoom-in-95 duration-150"
+                  >
+                    <div className="px-3 py-2">
+                      <p className="truncate text-xs font-semibold text-ink">{user.nombre}</p>
+                      <p className="truncate text-[11px] text-sage-600">{user.email}</p>
+                    </div>
+                    <div className="my-1.5 border-t border-line" />
+                    <button
+                      type="button"
+                      role="menuitem"
+                      onClick={() => {
+                        setIsUserMenuOpen(false);
+                        if (onOpenProfile) onOpenProfile();
+                        else window.location.hash = "#perfil";
+                      }}
+                      className="flex w-full items-center gap-2.5 rounded-xl px-3 py-2 text-xs font-medium text-ink transition hover:bg-paper focus-visible:outline-2 focus-visible:outline-jade-500"
+                    >
+                      <User size={15} className="text-sage-500" />
+                      <span>Mi perfil</span>
+                    </button>
+                    <button
+                      type="button"
+                      role="menuitem"
+                      onClick={() => {
+                        setIsUserMenuOpen(false);
+                        if (onOpenProfile) onOpenProfile();
+                        else window.location.hash = "#perfil";
+                      }}
+                      className="flex w-full items-center gap-2.5 rounded-xl px-3 py-2 text-xs font-medium text-ink transition hover:bg-paper focus-visible:outline-2 focus-visible:outline-jade-500"
+                    >
+                      <Package size={15} className="text-sage-500" />
+                      <span>Mis publicaciones</span>
+                    </button>
+                    <div className="my-1.5 border-t border-line" />
+                    <button
+                      type="button"
+                      role="menuitem"
+                      onClick={() => {
+                        setIsUserMenuOpen(false);
+                        logout();
+                      }}
+                      className="flex w-full items-center gap-2.5 rounded-xl px-3 py-2 text-xs font-medium text-red-600 transition hover:bg-red-50 focus-visible:outline-2 focus-visible:outline-red-500"
+                    >
+                      <LogOut size={15} className="text-red-500" />
+                      <span>Cerrar sesión</span>
+                    </button>
+                  </div>
+                )}
+              </div>
+            ) : (
+              onOpenAuth && (
+                <button
+                  type="button"
+                  onClick={onOpenAuth}
+                  className="inline-flex min-h-[44px] items-center justify-center rounded-full border border-ink/[0.12] px-4 py-2 text-xs sm:text-sm font-medium text-ink transition-all duration-200 hover:border-jade-600 hover:text-jade-700 hover:bg-jade-50/50 focus-visible:outline-2 focus-visible:outline-dashed focus-visible:outline-jade-500 focus-visible:outline-offset-4"
+                >
+                  Ingresar
+                </button>
+              )
             )}
             <a
               href="#feed"

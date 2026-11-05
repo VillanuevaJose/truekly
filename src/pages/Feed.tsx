@@ -40,6 +40,7 @@ import {
 } from "../data/mockProducts";
 import { APP_CONFIG } from "../config/appConfig";
 import { CommunityCard } from "../components/ui/CommunityCard";
+import { CommunityChat } from "../components/community/CommunityChat";
 import { PublishModal } from "../components/publish/PublishModal";
 import { fetchPublications, savePublication, syncLocalPublications } from "../services/publicationService";
 
@@ -47,6 +48,7 @@ type FeedProps = {
   onNavigateToLanding?: () => void;
   onOpenAuth?: (mode?: "login" | "register") => void;
   onSelectProduct?: (product: Product) => void;
+  onOpenProfile?: () => void;
 };
 
 type FeedSection = "trueques" | "comunidades" | "subastas" | "causas";
@@ -178,12 +180,65 @@ export default function Feed({
   onNavigateToLanding,
   onOpenAuth,
   onSelectProduct,
+  onOpenProfile,
 }: FeedProps) {
   const [activeSection, setActiveSection] = useState<FeedSection>("trueques");
   const [activeCategory, setActiveCategory] = useState<Category | "Todos">("Todos");
   const [activeCondition, setActiveCondition] = useState<Condition | "Todas">("Todas");
   const [query, setQuery] = useState("");
   const [isPublishOpen, setIsPublishOpen] = useState(false);
+  // Estados de filtro específicos para Comunidades
+  const [communitySearch, setCommunitySearch] = useState("");
+  const [communityCategory, setCommunityCategory] = useState<string>("Todas");
+  const [communityZone, setCommunityZone] = useState<string>("Todas");
+  const [onlyJoinedCommunities, setOnlyJoinedCommunities] = useState(false);
+  const [selectedCommunityForChat, setSelectedCommunityForChat] = useState<Community | null>(null);
+  const [joinedCommunityIds, setJoinedCommunityIds] = useState<string[]>(() => {
+    try {
+      return JSON.parse(localStorage.getItem("truekly_joined_communities") || "[]");
+    } catch {
+      return [];
+    }
+  });
+
+  const toggleJoinCommunity = (id: string) => {
+    setJoinedCommunityIds((prev) => {
+      const next = prev.includes(id) ? prev.filter((item) => item !== id) : [...prev, id];
+      try {
+        localStorage.setItem("truekly_joined_communities", JSON.stringify(next));
+      } catch {}
+      return next;
+    });
+  };
+
+  const communityCategories = useMemo(() => {
+    const set = new Set(mockCommunities.map((c) => c.category));
+    return ["Todas", ...Array.from(set)];
+  }, []);
+
+  const filteredCommunities = useMemo(() => {
+    return mockCommunities.filter((comm) => {
+      const q = (communitySearch || (activeSection === "comunidades" ? query : "")).trim().toLowerCase();
+      if (q) {
+        const matchesName = comm.name.toLowerCase().includes(q);
+        const matchesDesc = comm.description.toLowerCase().includes(q);
+        const matchesCat = comm.category.toLowerCase().includes(q);
+        const matchesZone = comm.zone.toLowerCase().includes(q);
+        if (!matchesName && !matchesDesc && !matchesCat && !matchesZone) return false;
+      }
+      if (communityCategory !== "Todas" && comm.category !== communityCategory) {
+        return false;
+      }
+      if (communityZone !== "Todas" && !comm.zone.toLowerCase().includes(communityZone.toLowerCase())) {
+        return false;
+      }
+      if (onlyJoinedCommunities && !joinedCommunityIds.includes(comm.id)) {
+        return false;
+      }
+      return true;
+    });
+  }, [communitySearch, query, activeSection, communityCategory, communityZone, onlyJoinedCommunities, joinedCommunityIds]);
+
   const [productList, setProductList] = useState<Product[]>(products);
 
   useEffect(() => {
@@ -307,7 +362,7 @@ export default function Feed({
                 value={query}
                 onChange={(e) => setQuery(e.target.value)}
                 type="text"
-                placeholder="Buscar qué necesitas o qué buscas cambiar..."
+                placeholder={activeSection === "comunidades" ? "Buscar comunidades por nombre, tema o zona..." : "Buscar qué necesitas o qué buscas cambiar..."}
                 className="w-full rounded-full border border-line bg-paper py-2 pl-9 pr-4 text-xs sm:text-sm text-ink outline-none transition placeholder:text-sage-500/80 focus:border-jade-500 focus:bg-white"
               />
             </div>
@@ -372,7 +427,8 @@ export default function Feed({
                         role="menuitem"
                         onClick={() => {
                           setIsMenuOpen(false);
-                          window.location.hash = "#perfil";
+                          if (onOpenProfile) onOpenProfile();
+                          else window.location.hash = "#perfil";
                         }}
                         className="flex w-full items-center gap-2.5 rounded-xl px-3 py-2 text-xs font-medium text-ink transition hover:bg-paper focus-visible:outline-2 focus-visible:outline-jade-500"
                       >
@@ -385,7 +441,8 @@ export default function Feed({
                         role="menuitem"
                         onClick={() => {
                           setIsMenuOpen(false);
-                          window.location.hash = "#perfil";
+                          if (onOpenProfile) onOpenProfile();
+                          else window.location.hash = "#perfil";
                         }}
                         className="flex w-full items-center gap-2.5 rounded-xl px-3 py-2 text-xs font-medium text-ink transition hover:bg-paper focus-visible:outline-2 focus-visible:outline-jade-500"
                       >
@@ -437,7 +494,10 @@ export default function Feed({
           <div className="mx-auto flex max-w-7xl items-center gap-2 overflow-x-auto px-4 py-2 sm:px-8">
             <button
               type="button"
-              onClick={() => setActiveSection("trueques")}
+              onClick={() => {
+                setActiveSection("trueques");
+                setSelectedCommunityForChat(null);
+              }}
               className={`inline-flex items-center gap-2 rounded-full px-4 py-1.5 text-xs font-semibold transition ${
                 activeSection === "trueques"
                   ? "bg-jade-500 text-paper"
@@ -453,7 +513,10 @@ export default function Feed({
 
             <button
               type="button"
-              onClick={() => setActiveSection("comunidades")}
+              onClick={() => {
+                setActiveSection("comunidades");
+                setSelectedCommunityForChat(null);
+              }}
               className={`inline-flex items-center gap-2 rounded-full px-4 py-1.5 text-xs font-semibold transition ${
                 activeSection === "comunidades"
                   ? "bg-jade-500 text-paper"
@@ -469,7 +532,10 @@ export default function Feed({
 
             <button
               type="button"
-              onClick={() => setActiveSection("causas")}
+              onClick={() => {
+                setActiveSection("causas");
+                setSelectedCommunityForChat(null);
+              }}
               className={`inline-flex items-center gap-2 rounded-full px-4 py-1.5 text-xs font-semibold transition ${
                 activeSection === "causas"
                   ? "bg-jade-500 text-paper"
@@ -485,7 +551,10 @@ export default function Feed({
 
             <button
               type="button"
-              onClick={() => setActiveSection("subastas")}
+              onClick={() => {
+                setActiveSection("subastas");
+                setSelectedCommunityForChat(null);
+              }}
               className={`inline-flex items-center gap-2 rounded-full px-4 py-1.5 text-xs font-semibold transition ${
                 activeSection === "subastas"
                   ? "bg-amber-500 text-ink shadow-sm"
@@ -500,130 +569,227 @@ export default function Feed({
       </div>
 
       {/* Contenido principal: Sidebar + Grid */}
-      <div className="mx-auto flex max-w-7xl gap-8 px-4 py-6 sm:px-8 sm:py-8">
-        {/* Sidebar izquierdo */}
-        <aside className="hidden w-64 shrink-0 lg:block">
-          <div className="sticky top-20 space-y-6">
-            {/* Categorías */}
-            <div>
-              <p className="mb-2 text-xs font-bold uppercase tracking-wider text-sage-500">
-                Categorías
-              </p>
-              <nav className="space-y-1">
-                {categoryList.map((cat) => {
-                  const Icon = categoryIcons[cat];
-                  const active = activeCategory === cat;
-                  return (
-                    <button
-                      key={cat}
-                      type="button"
-                      onClick={() => {
-                        setActiveCategory(cat);
-                        setActiveSection("trueques");
-                      }}
-                      className={`flex w-full items-center justify-between rounded-xl px-3 py-2 text-xs font-medium transition ${
-                        active
-                          ? "bg-jade-500 text-paper"
-                          : "text-ink-soft hover:bg-jade-50 hover:text-jade-700"
-                      }`}
-                    >
-                      <span className="flex items-center gap-2.5">
-                        <Icon size={15} />
-                        {cat}
-                      </span>
-                    </button>
-                  );
-                })}
-              </nav>
-            </div>
+      <div className={`mx-auto flex max-w-7xl gap-8 px-4 ${selectedCommunityForChat ? "py-3 sm:py-4" : "py-6 sm:px-8 sm:py-8"}`}>
+        {/* Sidebar izquierdo dinámico según la sección activa (se oculta cuando el chat de comunidad está abierto) */}
+        {!(activeSection === "comunidades" && selectedCommunityForChat) && (
+          <aside className="hidden w-64 shrink-0 lg:block">
+            <div className="sticky top-32 space-y-6 max-h-[calc(100vh-140px)] overflow-y-auto pr-1 no-scrollbar">
+            {activeSection === "comunidades" ? (
+              <>
+                {/* 1. Buscador rápido de comunidades */}
+                <div className="rounded-2xl border border-line bg-white p-4">
+                  <label htmlFor="search-comm" className="block text-xs font-bold text-ink mb-1.5">
+                    Buscar comunidades
+                  </label>
+                  <div className="relative">
+                    <Search className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-sage-400" />
+                    <input
+                      id="search-comm"
+                      type="text"
+                      value={communitySearch}
+                      onChange={(e) => setCommunitySearch(e.target.value)}
+                      placeholder="Ej. ciclistas, libros..."
+                      className="w-full h-9 pl-8 pr-2.5 rounded-xl border border-line bg-paper text-xs text-ink placeholder:text-sage-400 outline-none transition focus:border-jade-500 focus:bg-white"
+                    />
+                  </div>
+                </div>
 
-            {/* Toggle Cerca de Mí (Manual por zona, sin GPS) */}
-            <div className="rounded-2xl border border-line bg-white p-4">
-              <div className="flex items-center justify-between">
-                <span className="flex items-center gap-1.5 text-xs font-bold text-ink">
-                  <MapPin size={14} className="text-jade-500" />
-                  Cerca de mí
-                </span>
-                <label className="relative inline-flex cursor-pointer items-center">
-                  <input
-                    type="checkbox"
-                    checked={nearMeEnabled}
-                    onChange={(e) => setNearMeEnabled(e.target.checked)}
-                    className="peer sr-only"
-                  />
-                  <div className="peer h-5 w-9 rounded-full bg-line after:absolute after:left-[2px] after:top-[2px] after:h-4 after:w-4 after:rounded-full after:bg-white after:transition-all after:content-[''] peer-checked:bg-jade-500 peer-checked:after:translate-x-full" />
-                </label>
-              </div>
+                {/* 2. Filtro por Categoría de Comunidad */}
+                <div>
+                  <p className="mb-2 text-xs font-bold uppercase tracking-wider text-sage-500">
+                    Por Temática
+                  </p>
+                  <nav className="space-y-1 max-h-60 overflow-y-auto pr-1 no-scrollbar">
+                    {communityCategories.map((cat) => {
+                      const active = communityCategory === cat;
+                      return (
+                        <button
+                          key={cat}
+                          type="button"
+                          onClick={() => setCommunityCategory(cat)}
+                          className={`flex w-full items-center justify-between rounded-xl px-3 py-2 text-xs font-medium transition ${
+                            active
+                              ? "bg-jade-500 text-paper"
+                              : "text-ink-soft hover:bg-jade-50 hover:text-jade-700"
+                          }`}
+                        >
+                          <span>{cat}</span>
+                          {active && <CheckCircle2 size={13} className="text-paper" />}
+                        </button>
+                      );
+                    })}
+                  </nav>
+                </div>
 
-              <p className="mt-1.5 text-[11px] leading-tight text-sage-500">
-                Filtro manual por zona (cero GPS por privacidad).
-              </p>
-
-              {nearMeEnabled && (
-                <div className="mt-3 border-t border-line pt-3">
-                  <label htmlFor="select-zona" className="block text-[11px] font-semibold text-ink">
-                    Selecciona tu sector:
+                {/* 3. Filtro por Zona de Chimbote */}
+                <div className="rounded-2xl border border-line bg-white p-4">
+                  <label htmlFor="select-comm-zona" className="flex items-center gap-1.5 text-xs font-bold text-ink mb-2">
+                    <MapPin size={14} className="text-jade-500" />
+                    Zona / Distrito
                   </label>
                   <select
-                    id="select-zona"
-                    value={selectedZone}
-                    onChange={(e) => setSelectedZone(e.target.value as Zone)}
-                    className="mt-1 w-full rounded-lg border border-line bg-paper px-2.5 py-1.5 text-xs text-ink outline-none focus:border-jade-500"
+                    id="select-comm-zona"
+                    value={communityZone}
+                    onChange={(e) => setCommunityZone(e.target.value)}
+                    className="w-full rounded-xl border border-line bg-paper px-2.5 py-2 text-xs text-ink outline-none focus:border-jade-500"
                   >
-                    {CHIMBOTE_ZONES.map((z) => (
-                      <option key={z} value={z}>
-                        {z}
-                      </option>
-                    ))}
+                    <option value="Todas">Todas las zonas ({mockCommunities.length})</option>
+                    <option value="Casco Urbano">Casco Urbano</option>
+                    <option value="Nuevo Chimbote">Nuevo Chimbote</option>
+                    <option value="Buenos Aires">Buenos Aires</option>
+                    <option value="Bellamar">Bellamar</option>
+                    <option value="La Caleta">La Caleta</option>
+                    <option value="21 de Abril">21 de Abril</option>
                   </select>
                 </div>
-              )}
-            </div>
 
-            {/* Filtro por Estado del Producto */}
-            <div className="rounded-2xl border border-line bg-white p-4">
-              <p className="flex items-center gap-1.5 text-xs font-bold text-ink">
-                <SlidersHorizontal size={13} className="text-jade-500" />
-                Estado del producto
-              </p>
-              <div className="mt-2.5 space-y-1">
-                {conditionList.map((cond) => {
-                  const active = activeCondition === cond;
-                  return (
-                    <button
-                      key={cond}
-                      type="button"
-                      onClick={() => {
-                        setActiveCondition(cond);
-                        setActiveSection("trueques");
-                      }}
-                      className={`flex w-full items-center justify-between rounded-lg px-2.5 py-1.5 text-xs transition ${
-                        active
-                          ? "bg-jade-50 font-semibold text-jade-700"
-                          : "text-ink-soft hover:bg-paper"
-                      }`}
-                    >
-                      <span>{cond}</span>
-                      {active && <CheckCircle2 size={13} className="text-jade-500" />}
-                    </button>
-                  );
-                })}
-              </div>
-            </div>
+                {/* 4. Switch "Mis Comunidades" */}
+                <div className="rounded-2xl border border-line bg-white p-4">
+                  <div className="flex items-center justify-between">
+                    <span className="flex items-center gap-1.5 text-xs font-bold text-ink">
+                      <Users size={14} className="text-jade-500" />
+                      Mis comunidades
+                    </span>
+                    <label className="relative inline-flex cursor-pointer items-center">
+                      <input
+                        type="checkbox"
+                        checked={onlyJoinedCommunities}
+                        onChange={(e) => setOnlyJoinedCommunities(e.target.checked)}
+                        className="peer sr-only"
+                      />
+                      <div className="peer h-5 w-9 rounded-full bg-line after:absolute after:left-[2px] after:top-[2px] after:h-4 after:w-4 after:rounded-full after:bg-white after:transition-all after:content-[''] peer-checked:bg-jade-500 peer-checked:after:translate-x-full" />
+                    </label>
+                  </div>
+                  <p className="mt-1.5 text-[11px] leading-tight text-sage-500">
+                    Mostrar solo las comunidades a las que te has unido ({joinedCommunityIds.length}).
+                  </p>
+                </div>
+              </>
+            ) : (
+              <>
+                {/* Categorías de productos */}
+                <div>
+                  <p className="mb-2 text-xs font-bold uppercase tracking-wider text-sage-500">
+                    Categorías
+                  </p>
+                  <nav className="space-y-1">
+                    {categoryList.map((cat) => {
+                      const Icon = categoryIcons[cat];
+                      const active = activeCategory === cat;
+                      return (
+                        <button
+                          key={cat}
+                          type="button"
+                          onClick={() => {
+                            setActiveCategory(cat);
+                            setActiveSection("trueques");
+                          }}
+                          className={`flex w-full items-center justify-between rounded-xl px-3 py-2 text-xs font-medium transition ${
+                            active
+                              ? "bg-jade-500 text-paper"
+                              : "text-ink-soft hover:bg-jade-50 hover:text-jade-700"
+                          }`}
+                        >
+                          <span className="flex items-center gap-2.5">
+                            <Icon size={15} />
+                            {cat}
+                          </span>
+                        </button>
+                      );
+                    })}
+                  </nav>
+                </div>
 
-            {/* Respaldo Comunitario */}
-            <div className="rounded-2xl border border-line bg-jade-50/50 p-4 text-xs text-jade-700">
-              <div className="flex items-center gap-2 font-bold text-jade-700">
-                <ShieldCheck size={16} />
-                <span>Trueque 100% libre</span>
-              </div>
-              <p className="mt-1.5 leading-relaxed text-ink-soft text-[11px]">
-                En Truekly negocias sin dinero ni tasas fijas. Acuerda con la otra persona
-                y elijan un punto seguro de su zona.
-              </p>
-            </div>
+                {/* Toggle Cerca de Mí (Manual por zona, sin GPS) */}
+                <div className="rounded-2xl border border-line bg-white p-4">
+                  <div className="flex items-center justify-between">
+                    <span className="flex items-center gap-1.5 text-xs font-bold text-ink">
+                      <MapPin size={14} className="text-jade-500" />
+                      Cerca de mí
+                    </span>
+                    <label className="relative inline-flex cursor-pointer items-center">
+                      <input
+                        type="checkbox"
+                        checked={nearMeEnabled}
+                        onChange={(e) => setNearMeEnabled(e.target.checked)}
+                        className="peer sr-only"
+                      />
+                      <div className="peer h-5 w-9 rounded-full bg-line after:absolute after:left-[2px] after:top-[2px] after:h-4 after:w-4 after:rounded-full after:bg-white after:transition-all after:content-[''] peer-checked:bg-jade-500 peer-checked:after:translate-x-full" />
+                    </label>
+                  </div>
+
+                  <p className="mt-1.5 text-[11px] leading-tight text-sage-500">
+                    Filtro manual por zona (cero GPS por privacidad).
+                  </p>
+
+                  {nearMeEnabled && (
+                    <div className="mt-3 border-t border-line pt-3">
+                      <label htmlFor="select-zona" className="block text-[11px] font-semibold text-ink">
+                        Selecciona tu sector:
+                      </label>
+                      <select
+                        id="select-zona"
+                        value={selectedZone}
+                        onChange={(e) => setSelectedZone(e.target.value as Zone)}
+                        className="mt-1 w-full rounded-lg border border-line bg-paper px-2.5 py-1.5 text-xs text-ink outline-none focus:border-jade-500"
+                      >
+                        {CHIMBOTE_ZONES.map((z) => (
+                          <option key={z} value={z}>
+                            {z}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+                  )}
+                </div>
+
+                {/* Filtro por Estado del Producto */}
+                <div className="rounded-2xl border border-line bg-white p-4">
+                  <p className="flex items-center gap-1.5 text-xs font-bold text-ink">
+                    <SlidersHorizontal size={13} className="text-jade-500" />
+                    Estado del producto
+                  </p>
+                  <div className="mt-2.5 space-y-1">
+                    {conditionList.map((cond) => {
+                      const active = activeCondition === cond;
+                      return (
+                        <button
+                          key={cond}
+                          type="button"
+                          onClick={() => {
+                            setActiveCondition(cond);
+                            setActiveSection("trueques");
+                          }}
+                          className={`flex w-full items-center justify-between rounded-lg px-2.5 py-1.5 text-xs transition ${
+                            active
+                              ? "bg-jade-50 font-semibold text-jade-700"
+                              : "text-ink-soft hover:bg-paper"
+                          }`}
+                        >
+                          <span>{cond}</span>
+                          {active && <CheckCircle2 size={13} className="text-jade-500" />}
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+
+                {/* Respaldo Comunitario */}
+                <div className="rounded-2xl border border-line bg-jade-50/50 p-4 text-xs text-jade-700">
+                  <div className="flex items-center gap-2 font-bold text-jade-700">
+                    <ShieldCheck size={16} />
+                    <span>Trueque 100% libre</span>
+                  </div>
+                  <p className="mt-1.5 leading-relaxed text-ink-soft text-[11px]">
+                    En Truekly negocias sin dinero ni tasas fijas. Acuerda con la otra persona
+                    y elijan un punto seguro de su zona.
+                  </p>
+                </div>
+              </>
+            )}
           </div>
         </aside>
+        )}
 
         {/* Área central conmutada según la sección seleccionada */}
         <main className="flex-1">
@@ -691,25 +857,87 @@ export default function Feed({
 
           {/* SECCIÓN 2: COMUNIDADES LOCALES */}
           {activeSection === "comunidades" && (
+            selectedCommunityForChat ? (
+              <CommunityChat
+                community={selectedCommunityForChat}
+                isJoined={joinedCommunityIds.includes(selectedCommunityForChat.id)}
+                onToggleJoin={() => toggleJoinCommunity(selectedCommunityForChat.id)}
+                onBack={() => setSelectedCommunityForChat(null)}
+              />
+            ) : (
             <div>
-              <div className="mb-6 border-b border-line pb-4">
-                <span className="text-xs font-bold uppercase tracking-wider text-jade-600">
-                  Grupos de Barrio
-                </span>
-                <h1 className="font-display text-2xl font-semibold text-ink">
-                  Comunidades de Trueque en {APP_CONFIG.city}
-                </h1>
-                <p className="mt-1 text-xs text-sage-500">
-                  Únete a círculos locales por afición para encontrar objetos específicos y personas con intereses comunes.
-                </p>
+              <div className="mb-6 border-b border-line pb-4 flex flex-wrap items-end justify-between gap-4">
+                <div>
+                  <span className="text-xs font-bold uppercase tracking-wider text-jade-600">
+                    Grupos de Barrio & Afición
+                  </span>
+                  <h1 className="font-display text-2xl font-semibold text-ink">
+                    Comunidades de Trueque en {APP_CONFIG.city}
+                  </h1>
+                  <p className="mt-1 text-xs text-sage-500">
+                    Únete a círculos locales por afición para encontrar objetos específicos y personas con intereses comunes.
+                  </p>
+                </div>
+
+                {/* Contador y reseteador */}
+                <div className="flex items-center gap-3">
+                  <span className="text-xs text-sage-600 font-medium">
+                    {filteredCommunities.length} de {mockCommunities.length} comunidades
+                  </span>
+                  {(communitySearch || communityCategory !== "Todas" || communityZone !== "Todas" || onlyJoinedCommunities) && (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setCommunitySearch("");
+                        setCommunityCategory("Todas");
+                        setCommunityZone("Todas");
+                        setOnlyJoinedCommunities(false);
+                      }}
+                      className="text-xs font-semibold text-jade-600 hover:underline"
+                    >
+                      Limpiar filtros
+                    </button>
+                  )}
+                </div>
               </div>
 
-              <div className="grid gap-5 md:grid-cols-2">
-                {mockCommunities.map((comm) => (
-                  <CommunityCard key={comm.id} community={comm} />
-                ))}
-              </div>
+              {filteredCommunities.length === 0 ? (
+                <div className="rounded-2xl border border-line bg-white p-12 text-center">
+                  <Users className="mx-auto h-10 w-10 text-sage-400" />
+                  <p className="mt-3 font-display text-base font-semibold text-ink">
+                    No se encontraron comunidades con esos criterios
+                  </p>
+                  <p className="mt-1 text-xs text-sage-500">
+                    Prueba cambiando la zona, la temática o borrando los términos de búsqueda.
+                  </p>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setCommunitySearch("");
+                      setCommunityCategory("Todas");
+                      setCommunityZone("Todas");
+                      setOnlyJoinedCommunities(false);
+                    }}
+                    className="mt-4 inline-flex items-center gap-1.5 rounded-full bg-jade-500 px-4 py-2 text-xs font-semibold text-white transition hover:bg-jade-600"
+                  >
+                    Ver todas las comunidades
+                  </button>
+                </div>
+              ) : (
+                <div className="grid gap-5 md:grid-cols-2">
+                  {filteredCommunities.map((comm) => (
+                    <CommunityCard
+                      key={comm.id}
+                      community={comm}
+                      isJoined={joinedCommunityIds.includes(comm.id)}
+                      onToggleJoin={() => toggleJoinCommunity(comm.id)}
+                      onOpenChat={() => setSelectedCommunityForChat(comm)}
+                    />
+                  ))}
+                </div>
+              )}
             </div>
+            )
           )}
 
           {/* SECCIÓN 3: CAUSAS SOCIALES / ONGS */}

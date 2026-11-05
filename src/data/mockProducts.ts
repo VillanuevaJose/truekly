@@ -749,35 +749,7 @@ export const products: Product[] = [
   },
 ];
 
-export const mockCommunities: Community[] = [
-  {
-    id: "c1",
-    name: "Makers & Técnicos del Santa",
-    zone: "Casco Urbano, Chimbote",
-    membersCount: 84,
-    description: "Intercambio libre de repuestos, herramientas, placas y componentes de taller.",
-    category: "Tecnología y Oficio",
-    icon: "wrench",
-  },
-  {
-    id: "c2",
-    name: "Ciclistas Urbanos Chimbote",
-    zone: "Nuevo Chimbote / Buenos Aires",
-    membersCount: 142,
-    description: "Comunidad dedicada al trueque de accesorios de ruta, repuestos y equipamiento ciclista.",
-    category: "Movilidad",
-    icon: "bike",
-  },
-  {
-    id: "c3",
-    name: "Huertos y Esquejes Urbanos",
-    zone: "Bellamar y 27 de Octubre",
-    membersCount: 67,
-    description: "Intercambiamos plantas, abono casero, macetas y semillas orgánicas entre personas de la ciudad.",
-    category: "Ecología y Hogar",
-    icon: "sprout",
-  },
-];
+export { mockCommunities } from "./mockCommunities";
 
 export const mockCauses: CauseSocial[] = [
   {
