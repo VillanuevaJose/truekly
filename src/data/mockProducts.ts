@@ -53,15 +53,7 @@ export type Community = {
   image?: string;
 };
 
-export type CauseSocial = {
-  id: string;
-  ongName: string;
-  city: string;
-  objective: string;
-  acceptedItems: string[];
-  contact: string;
-  verified: boolean;
-};
+export type { CauseSocial, CauseCategory } from "./mockCauses";
 
 export type SimulatedAuction = {
   id: string;
@@ -750,49 +742,7 @@ export const products: Product[] = [
 ];
 
 export { mockCommunities } from "./mockCommunities";
-
-export const mockCauses: CauseSocial[] = [
-  {
-    id: "ong-1",
-    ongName: "Albergue Canino Huellitas Chimbote",
-    city: "Nuevo Chimbote",
-    objective: "Cuidado y rescate de perritos callejeros de la zona sur.",
-    acceptedItems: [
-      "Mantas y toallas limpias",
-      "Platos y comederos de acero o plástico",
-      "Correas y collares resistentes",
-      "Materiales para techar caniles",
-    ],
-    contact: "Coordinación comunitaria por Truekly",
-    verified: true,
-  },
-  {
-    id: "ong-2",
-    ongName: "Comedor Comunitario San Pedrito",
-    city: "Casco Urbano, Chimbote",
-    objective: "Apoyo alimentario diario a familias de adultos mayores y pescadores en retiro.",
-    acceptedItems: [
-      "Ollas grandes y menaje de cocina",
-      "Mesas y bancas en buen estado",
-      "Envases de almacenamiento herméticos",
-    ],
-    contact: "Comité de madres San Pedrito",
-    verified: true,
-  },
-  {
-    id: "ong-3",
-    ongName: "Biblioteca Popular Bellamar",
-    city: "Bellamar, Chimbote",
-    objective: "Fomento de lectura escolar y apoyo en tareas a escolares de la zona.",
-    acceptedItems: [
-      "Libros escolares y diccionarios",
-      "Mobiliario de estudio o estantes",
-      "Lápices, colores y útiles sin uso",
-    ],
-    contact: "Comunidad Bellamar Sector II",
-    verified: true,
-  },
-];
+export { mockCauses } from "./mockCauses";
 
 export const mockSimulatedAuctions: SimulatedAuction[] = [
   {

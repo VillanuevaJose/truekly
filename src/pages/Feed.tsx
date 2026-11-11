@@ -38,10 +38,14 @@ import {
   type Zone,
   type Product,
   type Community,
+  type CauseSocial,
 } from "../data/mockProducts";
 import { APP_CONFIG } from "../config/appConfig";
 import { CommunityCard } from "../components/ui/CommunityCard";
 import { CommunityChat } from "../components/community/CommunityChat";
+import { CauseCard } from "../components/causes/CauseCard";
+import { CauseDetailModal } from "../components/causes/CauseDetailModal";
+import { DonateModal } from "../components/causes/DonateModal";
 import { PublishModal } from "../components/publish/PublishModal";
 import { fetchPublications, savePublication, syncLocalPublications } from "../services/publicationService";
 
@@ -252,6 +256,43 @@ export default function Feed({
     });
   }, [communitySearch, query, activeSection, communityCategory, communityZone, onlyJoinedCommunities, joinedCommunityIds]);
 
+  // Estados de filtro y modales específicos para Causas Sociales / ONGs
+  const [causeSearch, setCauseSearch] = useState("");
+  const [causeCategory, setCauseCategory] = useState<string>("Todas");
+  const [causeZone, setCauseZone] = useState<string>("Todas");
+  const [onlyUrgentCauses, setOnlyUrgentCauses] = useState(false);
+  const [selectedCauseForDetail, setSelectedCauseForDetail] = useState<CauseSocial | null>(null);
+  const [selectedCauseForDonation, setSelectedCauseForDonation] = useState<CauseSocial | null>(null);
+
+  const causeCategories = useMemo(() => {
+    const set = new Set(mockCauses.map((c) => c.category));
+    return ["Todas", ...Array.from(set)];
+  }, []);
+
+  const filteredCauses = useMemo(() => {
+    return mockCauses.filter((cause) => {
+      const q = (causeSearch || (activeSection === "causas" ? query : "")).trim().toLowerCase();
+      if (q) {
+        const matchesName = cause.ongName.toLowerCase().includes(q);
+        const matchesObj = cause.objective.toLowerCase().includes(q);
+        const matchesItems = cause.acceptedItems.some((item) => item.toLowerCase().includes(q));
+        const matchesZone = (cause.zone + " " + cause.city).toLowerCase().includes(q);
+        const matchesCategory = cause.category.toLowerCase().includes(q);
+        if (!matchesName && !matchesObj && !matchesItems && !matchesZone && !matchesCategory) return false;
+      }
+      if (causeCategory !== "Todas" && cause.category !== causeCategory) {
+        return false;
+      }
+      if (causeZone !== "Todas" && !(cause.zone + " " + cause.city).toLowerCase().includes(causeZone.toLowerCase())) {
+        return false;
+      }
+      if (onlyUrgentCauses && cause.urgency !== "urgente") {
+        return false;
+      }
+      return true;
+    });
+  }, [causeSearch, query, activeSection, causeCategory, causeZone, onlyUrgentCauses]);
+
   const [productList, setProductList] = useState<Product[]>(products);
 
   useEffect(() => {
@@ -374,7 +415,13 @@ export default function Feed({
                 value={query}
                 onChange={(e) => setQuery(e.target.value)}
                 type="text"
-                placeholder={activeSection === "comunidades" ? "Buscar comunidades por nombre, tema o zona..." : "Buscar qué necesitas o qué buscas cambiar..."}
+                placeholder={
+                  activeSection === "comunidades"
+                    ? "Buscar comunidades por nombre, tema o zona..."
+                    : activeSection === "causas"
+                    ? "Buscar causas, comedores, albergues u objetos solicitados..."
+                    : "Buscar qué necesitas o qué buscas cambiar..."
+                }
                 className="w-full rounded-full border border-line bg-paper py-2 pl-9 pr-4 text-xs sm:text-sm text-ink outline-none transition placeholder:text-sage-500/80 focus:border-jade-500 focus:bg-white"
               />
             </div>
@@ -686,6 +733,109 @@ export default function Feed({
                   </p>
                 </div>
               </>
+            ) : activeSection === "causas" ? (
+              <>
+                {/* 1. Buscador rápido de causas y objetos */}
+                <div className="rounded-2xl border border-line bg-white p-4">
+                  <label htmlFor="search-causes" className="block text-xs font-bold text-ink mb-1.5">
+                    Buscar causas u objetos
+                  </label>
+                  <div className="relative">
+                    <Search className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-sage-400" />
+                    <input
+                      id="search-causes"
+                      type="text"
+                      value={causeSearch}
+                      onChange={(e) => setCauseSearch(e.target.value)}
+                      placeholder="Ej. mantas, ollas, libros..."
+                      className="w-full h-9 pl-8 pr-2.5 rounded-xl border border-line bg-paper text-xs text-ink placeholder:text-sage-400 outline-none transition focus:border-jade-500 focus:bg-white"
+                    />
+                  </div>
+                </div>
+
+                {/* 2. Filtro por Temática Solidaria */}
+                <div>
+                  <p className="mb-2 text-xs font-bold uppercase tracking-wider text-sage-500">
+                    Temática Solidaria
+                  </p>
+                  <nav className="space-y-1">
+                    {causeCategories.map((cat) => {
+                      const active = causeCategory === cat;
+                      return (
+                        <button
+                          key={cat}
+                          type="button"
+                          onClick={() => setCauseCategory(cat)}
+                          className={`flex w-full items-center justify-between rounded-xl px-3 py-2 text-xs font-medium transition ${
+                            active
+                              ? "bg-jade-500 text-paper font-semibold"
+                              : "text-ink-soft hover:bg-jade-50 hover:text-jade-700"
+                          }`}
+                        >
+                          <span className="truncate">{cat}</span>
+                          {active && <CheckCircle2 size={13} className="shrink-0" />}
+                        </button>
+                      );
+                    })}
+                  </nav>
+                </div>
+
+                {/* 3. Filtro por Zona */}
+                <div className="rounded-2xl border border-line bg-white p-4">
+                  <label htmlFor="cause-zone-select" className="flex items-center gap-1.5 text-xs font-bold text-ink mb-2">
+                    <MapPin size={14} className="text-jade-500" />
+                    Zona / Distrito
+                  </label>
+                  <select
+                    id="cause-zone-select"
+                    value={causeZone}
+                    onChange={(e) => setCauseZone(e.target.value)}
+                    className="w-full rounded-xl border border-line bg-paper px-2.5 py-2 text-xs text-ink outline-none focus:border-jade-500"
+                  >
+                    <option value="Todas">Todas las zonas ({mockCauses.length})</option>
+                    <option value="Nuevo Chimbote">Nuevo Chimbote</option>
+                    <option value="Casco Urbano">Casco Urbano</option>
+                    <option value="Bellamar">Bellamar</option>
+                    <option value="La Caleta">La Caleta</option>
+                    <option value="27 de Octubre">27 de Octubre</option>
+                    <option value="Miraflores">Miraflores</option>
+                    <option value="San Pedro">San Pedro</option>
+                  </select>
+                </div>
+
+                {/* 4. Switch Solo Urgentes */}
+                <div className="rounded-2xl border border-line bg-white p-4">
+                  <div className="flex items-center justify-between">
+                    <span className="flex items-center gap-1.5 text-xs font-bold text-ink">
+                      <Clock size={14} className="text-rose-500" />
+                      Solo causas urgentes
+                    </span>
+                    <label className="relative inline-flex cursor-pointer items-center">
+                      <input
+                        type="checkbox"
+                        checked={onlyUrgentCauses}
+                        onChange={(e) => setOnlyUrgentCauses(e.target.checked)}
+                        className="peer sr-only"
+                      />
+                      <div className="peer h-5 w-9 rounded-full bg-line after:absolute after:left-[2px] after:top-[2px] after:h-4 after:w-4 after:rounded-full after:bg-white after:transition-all after:content-[''] peer-checked:bg-rose-500 peer-checked:after:translate-x-full" />
+                    </label>
+                  </div>
+                  <p className="mt-1.5 text-[11px] leading-tight text-sage-500">
+                    Muestra causas con necesidades prioritarias inmediatas.
+                  </p>
+                </div>
+
+                {/* 5. Tarjeta de Confianza y Cero Dinero */}
+                <div className="rounded-2xl border border-jade-200/80 bg-jade-50/60 p-4 text-xs">
+                  <div className="flex items-center gap-2 text-jade-800 font-bold mb-1">
+                    <ShieldCheck size={16} className="text-jade-600" />
+                    <span>Garantía Truekly</span>
+                  </div>
+                  <p className="text-[11px] leading-relaxed text-jade-900/80">
+                    En Truekly las causas sociales no reciben dinero en efectivo ni donaciones monetarias. Toda colaboración es exclusivamente en bienes útiles entregados en Puntos Seguros autorizados.
+                  </p>
+                </div>
+              </>
             ) : (
               <>
                 {/* Categorías de productos */}
@@ -970,71 +1120,75 @@ export default function Feed({
           {/* SECCIÓN 3: CAUSAS SOCIALES / ONGS */}
           {activeSection === "causas" && (
             <div>
-              <div className="mb-6 border-b border-line pb-4">
-                <span className="text-xs font-bold uppercase tracking-wider text-jade-600">
-                  Solidaridad Directa
-                </span>
-                <h1 className="font-display text-2xl font-semibold text-ink">
-                  Aporte de Objetos a Causas Sociales y ONGs
-                </h1>
-                <p className="mt-1 text-xs text-sage-500">
-                  Donación de bienes útiles directamente a comedores, albergues y bibliotecas populares locales. Sin dinero de por medio.
-                </p>
+              <div className="mb-6 border-b border-line pb-4 flex flex-wrap items-end justify-between gap-4">
+                <div>
+                  <span className="text-xs font-bold uppercase tracking-wider text-jade-600">
+                    Solidaridad Directa & Transparente
+                  </span>
+                  <h1 className="font-display text-2xl font-semibold text-ink">
+                    Aporte de Objetos a Causas Sociales y ONGs en {APP_CONFIG.city}
+                  </h1>
+                  <p className="mt-1 text-xs text-sage-500 max-w-2xl leading-relaxed">
+                    Donación de bienes útiles directamente a albergues, comedores populares, bibliotecas comunitarias y colectivos ecológicos de Chimbote. Sin intermediarios ni dinero de por medio.
+                  </p>
+                </div>
+
+                {/* Contador y Limpiador de filtros */}
+                <div className="flex items-center gap-3">
+                  <span className="text-xs text-sage-600 font-medium">
+                    {filteredCauses.length} de {mockCauses.length} causas activas
+                  </span>
+                  {(causeSearch || causeCategory !== "Todas" || causeZone !== "Todas" || onlyUrgentCauses) && (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setCauseSearch("");
+                        setCauseCategory("Todas");
+                        setCauseZone("Todas");
+                        setOnlyUrgentCauses(false);
+                      }}
+                      className="text-xs font-semibold text-jade-600 hover:underline cursor-pointer"
+                    >
+                      Limpiar filtros
+                    </button>
+                  )}
+                </div>
               </div>
 
-              <div className="space-y-4">
-                {mockCauses.map((cause) => (
-                  <article
-                    key={cause.id}
-                    className="rounded-2xl border border-line bg-white p-5 transition hover:border-jade-400 sm:p-6"
+              {/* Listado de tarjetas de causas */}
+              {filteredCauses.length === 0 ? (
+                <div className="rounded-2xl border border-line bg-white p-12 text-center">
+                  <p className="font-display text-base font-bold text-ink">
+                    No se encontraron causas con los filtros seleccionados
+                  </p>
+                  <p className="mt-1 text-xs text-sage-500">
+                    Prueba cambiando la zona, la temática o borrando los términos de búsqueda.
+                  </p>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setCauseSearch("");
+                      setCauseCategory("Todas");
+                      setCauseZone("Todas");
+                      setOnlyUrgentCauses(false);
+                    }}
+                    className="mt-4 inline-flex items-center gap-1.5 rounded-full bg-jade-500 px-4 py-2 text-xs font-semibold text-white transition hover:bg-jade-600 cursor-pointer"
                   >
-                    <div className="flex flex-wrap items-center justify-between gap-2">
-                      <div className="flex items-center gap-2">
-                        <h3 className="font-display text-lg font-bold text-ink">
-                          {cause.ongName}
-                        </h3>
-                        {cause.verified && (
-                          <span className="inline-flex items-center gap-1 rounded-full bg-jade-50 px-2 py-0.5 text-[11px] font-semibold text-jade-700">
-                            <ShieldCheck size={12} /> ONG Verificada
-                          </span>
-                        )}
-                      </div>
-                      <span className="text-xs text-sage-500">{cause.city}</span>
-                    </div>
-
-                    <p className="mt-2 text-xs leading-relaxed text-ink-soft sm:text-sm">
-                      {cause.objective}
-                    </p>
-
-                    <div className="mt-4 rounded-xl border border-line bg-paper/60 p-3">
-                      <p className="text-[11px] font-bold uppercase tracking-wider text-sage-500">
-                        Objetos que necesitan actualmente:
-                      </p>
-                      <div className="mt-1.5 flex flex-wrap gap-1.5">
-                        {cause.acceptedItems.map((item, idx) => (
-                          <span
-                            key={idx}
-                            className="rounded-full border border-line bg-white px-2.5 py-0.5 text-xs text-ink"
-                          >
-                            {item}
-                          </span>
-                        ))}
-                      </div>
-                    </div>
-
-                    <div className="mt-4 flex items-center justify-between pt-2">
-                      <span className="text-xs text-sage-500">{cause.contact}</span>
-                      <button
-                        type="button"
-                        className="inline-flex items-center gap-1.5 rounded-full bg-jade-500 px-4 py-1.5 text-xs font-semibold text-paper hover:bg-jade-600"
-                      >
-                        <HeartHandshake size={14} />
-                        <span>Aportar un objeto</span>
-                      </button>
-                    </div>
-                  </article>
-                ))}
-              </div>
+                    Ver todas las causas
+                  </button>
+                </div>
+              ) : (
+                <div className="space-y-5">
+                  {filteredCauses.map((cause) => (
+                    <CauseCard
+                      key={cause.id}
+                      cause={cause}
+                      onDonate={(c) => setSelectedCauseForDonation(c)}
+                      onViewDetails={(c) => setSelectedCauseForDetail(c)}
+                    />
+                  ))}
+                </div>
+              )}
             </div>
           )}
 
@@ -1177,6 +1331,21 @@ export default function Feed({
           const saved = await savePublication(newProduct, user?.id);
           setProductList((prev) => [saved, ...prev.filter((p) => p.id !== saved.id)]);
         }}
+        onRequireAuth={onOpenAuth}
+      />
+
+      {/* Modales de Solidaridad para Causas Sociales / ONGs */}
+      <CauseDetailModal
+        cause={selectedCauseForDetail}
+        onClose={() => setSelectedCauseForDetail(null)}
+        onDonate={(c) => setSelectedCauseForDonation(c)}
+      />
+
+      <DonateModal
+        cause={selectedCauseForDonation}
+        isOpen={Boolean(selectedCauseForDonation)}
+        onClose={() => setSelectedCauseForDonation(null)}
+        currentUser={user}
         onRequireAuth={onOpenAuth}
       />
     </div>
