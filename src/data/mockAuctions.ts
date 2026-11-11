@@ -4,7 +4,8 @@ export type AuctionCategory =
   | "Instrumentos & Sonido"
   | "Gaming & Consolas"
   | "Herramientas de Taller"
-  | "Tecnología & Video";
+  | "Tecnología & Video"
+  | "Movilidad Urbana";
 
 export type SimulatedBid = {
   id: string;
@@ -221,29 +222,31 @@ export const mockSimulatedAuctions: SimulatedAuction[] = [
   },
   {
     id: "auc-7",
-    title: "Consola Portátil Nintendo 3DS XL con Tarjeta 32GB y Stylus",
-    category: "Gaming & Consolas",
-    image: "/products/nintendo-3ds.jpg",
+    title: "Scooter Eléctrico Plegable 250W con Freno Regenerativo y Luces LED",
+    category: "Movilidad Urbana",
+    image: "/products/scooter-electrico.jpg",
     gallery: [
-      "/products/nintendo-3ds.jpg",
+      "/products/scooter-electrico.jpg",
     ],
-    zone: "Bellamar, Chimbote",
-    seller: "Andrés P.",
+    zone: "Buenos Aires, Chimbote",
+    seller: "Franco A.",
     sellerAvatar: "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?auto=format&fit=crop&w=120&q=80",
-    sellerRole: "Coleccionista Retro",
-    trustScore: 4.90,
-    initialBidSimulated: 170,
-    currentBidSimulated: 260,
-    bidsCount: 7,
-    hoursRemaining: 36,
-    minIncrement: 15,
-    isBenefic: false,
-    description: "Pantallas duales con micas protectoras instaladas desde el primer día. Batería con excelente retención de carga, cargador original y tarjeta microSD SanDisk de 32GB.",
+    sellerRole: "Ingeniero & Ciclista Urbano",
+    trustScore: 4.93,
+    initialBidSimulated: 340,
+    currentBidSimulated: 490,
+    bidsCount: 14,
+    hoursRemaining: 15,
+    minIncrement: 25,
+    isBenefic: true,
+    beneficEntity: "50% donado a Guardianes de la Bahía El Ferrol",
+    description: "Scooter eléctrico plegable con motor de 250W, velocidad de hasta 25 km/h y autonomía real de 18-20 km. Incluye cargador rápido original, display digital con velocímetro, luz delantera LED y freno de disco trasero con pastillas nuevas.",
     condition: "Buen estado",
     safePointRecommended: "Punto Seguro Plaza Mayor de Nuevo Chimbote",
     bidsHistory: [
-      { id: "b71", bidderName: "Diana S.", bidderZone: "Nuevo Chimbote", amount: 260, timeAgo: "Hace 2 horas" },
-      { id: "b72", bidderName: "Carlos M.", bidderZone: "Casco Urbano", amount: 240, timeAgo: "Hace 6 horas" },
+      { id: "b71", bidderName: "Alonso V.", bidderZone: "Bellamar", amount: 490, timeAgo: "Hace 25 min" },
+      { id: "b72", bidderName: "Diana S.", bidderZone: "Nuevo Chimbote", amount: 465, timeAgo: "Hace 1 hora" },
+      { id: "b73", bidderName: "Carlos M.", bidderZone: "Casco Urbano", amount: 420, timeAgo: "Hace 4 horas" },
     ],
   },
   {
