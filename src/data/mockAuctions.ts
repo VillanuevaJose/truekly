@@ -227,6 +227,7 @@ export const mockSimulatedAuctions: SimulatedAuction[] = [
     image: "/products/scooter-electrico.jpg",
     gallery: [
       "/products/scooter-electrico.jpg",
+      "/products/scooter-electrico-2.jpg",
     ],
     zone: "Buenos Aires, Chimbote",
     seller: "Franco A.",
