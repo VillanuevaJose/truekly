@@ -39,6 +39,7 @@ import {
   type Product,
   type Community,
   type CauseSocial,
+  type SimulatedAuction,
 } from "../data/mockProducts";
 import { APP_CONFIG } from "../config/appConfig";
 import { CommunityCard } from "../components/ui/CommunityCard";
@@ -46,6 +47,9 @@ import { CommunityChat } from "../components/community/CommunityChat";
 import { CauseCard } from "../components/causes/CauseCard";
 import { CauseDetailModal } from "../components/causes/CauseDetailModal";
 import { DonateModal } from "../components/causes/DonateModal";
+import { AuctionCard } from "../components/auctions/AuctionCard";
+import { AuctionDetailModal } from "../components/auctions/AuctionDetailModal";
+import { BidModal } from "../components/auctions/BidModal";
 import { PublishModal } from "../components/publish/PublishModal";
 import { fetchPublications, savePublication, syncLocalPublications } from "../services/publicationService";
 
@@ -293,6 +297,66 @@ export default function Feed({
     });
   }, [causeSearch, query, activeSection, causeCategory, causeZone, onlyUrgentCauses]);
 
+  // Estados de filtro y modales específicos para Subastas Benéficas Simuladas
+  const [auctionList, setAuctionList] = useState<SimulatedAuction[]>(mockSimulatedAuctions);
+  const [auctionSearch, setAuctionSearch] = useState("");
+  const [auctionCategory, setAuctionCategory] = useState<string>("Todas");
+  const [auctionZone, setAuctionZone] = useState<string>("Todas");
+  const [onlyBeneficAuctions, setOnlyBeneficAuctions] = useState(false);
+  const [selectedAuctionForDetail, setSelectedAuctionForDetail] = useState<SimulatedAuction | null>(null);
+  const [selectedAuctionForBid, setSelectedAuctionForBid] = useState<SimulatedAuction | null>(null);
+
+  const handleBidSuccess = (auctionId: string, newAmount: number, bidderName: string) => {
+    setAuctionList((prev) =>
+      prev.map((auc) => {
+        if (auc.id !== auctionId) return auc;
+        const newBid = {
+          id: `b-${Date.now()}`,
+          bidderName,
+          bidderZone: "Chimbote",
+          amount: newAmount,
+          timeAgo: "Ahora mismo",
+          isCurrentUser: true,
+        };
+        return {
+          ...auc,
+          currentBidSimulated: newAmount,
+          bidsCount: auc.bidsCount + 1,
+          bidsHistory: [newBid, ...auc.bidsHistory],
+        };
+      })
+    );
+  };
+
+  const auctionCategories = useMemo(() => {
+    const set = new Set(auctionList.map((a) => a.category));
+    return ["Todas", ...Array.from(set)];
+  }, [auctionList]);
+
+  const filteredAuctions = useMemo(() => {
+    return auctionList.filter((auc) => {
+      const q = (auctionSearch || (activeSection === "subastas" ? query : "")).trim().toLowerCase();
+      if (q) {
+        const matchesTitle = auc.title.toLowerCase().includes(q);
+        const matchesDesc = auc.description.toLowerCase().includes(q);
+        const matchesSeller = auc.seller.toLowerCase().includes(q);
+        const matchesZone = auc.zone.toLowerCase().includes(q);
+        const matchesEntity = (auc.beneficEntity || "").toLowerCase().includes(q);
+        if (!matchesTitle && !matchesDesc && !matchesSeller && !matchesZone && !matchesEntity) return false;
+      }
+      if (auctionCategory !== "Todas" && auc.category !== auctionCategory) {
+        return false;
+      }
+      if (auctionZone !== "Todas" && !auc.zone.toLowerCase().includes(auctionZone.toLowerCase())) {
+        return false;
+      }
+      if (onlyBeneficAuctions && !auc.isBenefic) {
+        return false;
+      }
+      return true;
+    });
+  }, [auctionList, auctionSearch, query, activeSection, auctionCategory, auctionZone, onlyBeneficAuctions]);
+
   const [productList, setProductList] = useState<Product[]>(products);
 
   useEffect(() => {
@@ -420,6 +484,8 @@ export default function Feed({
                     ? "Buscar comunidades por nombre, tema o zona..."
                     : activeSection === "causas"
                     ? "Buscar causas, comedores, albergues u objetos solicitados..."
+                    : activeSection === "subastas"
+                    ? "Buscar artículos singulares, cámaras, instrumentos o causas benéficas..."
                     : "Buscar qué necesitas o qué buscas cambiar..."
                 }
                 className="w-full rounded-full border border-line bg-paper py-2 pl-9 pr-4 text-xs sm:text-sm text-ink outline-none transition placeholder:text-sage-500/80 focus:border-jade-500 focus:bg-white"
@@ -622,6 +688,9 @@ export default function Feed({
             >
               <Gavel size={14} />
               <span>Subastas</span>
+              <span className="rounded-full bg-amber-100 px-1.5 py-0.2 text-[10px] font-bold text-amber-900">
+                {auctionList.length}
+              </span>
             </button>
           </div>
         </div>
@@ -833,6 +902,107 @@ export default function Feed({
                   </div>
                   <p className="text-[11px] leading-relaxed text-jade-900/80">
                     En Truekly las causas sociales no reciben dinero en efectivo ni donaciones monetarias. Toda colaboración es exclusivamente en bienes útiles entregados en Puntos Seguros autorizados.
+                  </p>
+                </div>
+              </>
+            ) : activeSection === "subastas" ? (
+              <>
+                {/* 1. Buscador rápido de subastas */}
+                <div className="rounded-2xl border border-line bg-white p-4">
+                  <label htmlFor="search-auctions" className="block text-xs font-bold text-ink mb-1.5">
+                    Buscar en subastas
+                  </label>
+                  <div className="relative">
+                    <Search className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-sage-400" />
+                    <input
+                      id="search-auctions"
+                      type="text"
+                      value={auctionSearch}
+                      onChange={(e) => setAuctionSearch(e.target.value)}
+                      placeholder="Ej. cámara, telescopio, dron..."
+                      className="w-full h-9 pl-8 pr-2.5 rounded-xl border border-line bg-paper text-xs text-ink placeholder:text-sage-400 outline-none transition focus:border-amber-500 focus:bg-white"
+                    />
+                  </div>
+                </div>
+
+                {/* 2. Categorías de subasta */}
+                <div>
+                  <p className="mb-2 text-xs font-bold uppercase tracking-wider text-sage-500">
+                    Especialidad / Rubro
+                  </p>
+                  <nav className="space-y-1">
+                    {auctionCategories.map((cat) => {
+                      const active = auctionCategory === cat;
+                      return (
+                        <button
+                          key={cat}
+                          type="button"
+                          onClick={() => setAuctionCategory(cat)}
+                          className={`flex w-full items-center justify-between rounded-xl px-3 py-2 text-xs font-medium transition cursor-pointer ${
+                            active
+                              ? "bg-amber-500 text-ink font-bold shadow-xs"
+                              : "text-ink-soft hover:bg-amber-50 hover:text-amber-800"
+                          }`}
+                        >
+                          <span className="truncate">{cat}</span>
+                          {active && <CheckCircle2 size={13} className="shrink-0 text-ink" />}
+                        </button>
+                      );
+                    })}
+                  </nav>
+                </div>
+
+                {/* 3. Filtro por Zona */}
+                <div className="rounded-2xl border border-line bg-white p-4">
+                  <label htmlFor="auction-zone-select" className="flex items-center gap-1.5 text-xs font-bold text-ink mb-2">
+                    <MapPin size={14} className="text-amber-600" />
+                    Zona / Distrito
+                  </label>
+                  <select
+                    id="auction-zone-select"
+                    value={auctionZone}
+                    onChange={(e) => setAuctionZone(e.target.value)}
+                    className="w-full rounded-xl border border-line bg-paper px-2.5 py-2 text-xs text-ink outline-none focus:border-amber-500"
+                  >
+                    <option value="Todas">Todas las zonas ({auctionList.length})</option>
+                    <option value="Nuevo Chimbote">Nuevo Chimbote</option>
+                    <option value="Casco Urbano">Casco Urbano</option>
+                    <option value="Buenos Aires">Buenos Aires</option>
+                    <option value="Bellamar">Bellamar</option>
+                    <option value="La Caleta">La Caleta</option>
+                  </select>
+                </div>
+
+                {/* 4. Switch Solo Benéficas */}
+                <div className="rounded-2xl border border-line bg-white p-4">
+                  <div className="flex items-center justify-between">
+                    <span className="flex items-center gap-1.5 text-xs font-bold text-ink">
+                      <Heart size={14} className="text-jade-600 fill-jade-600" />
+                      Solo con fin social
+                    </span>
+                    <label className="relative inline-flex cursor-pointer items-center">
+                      <input
+                        type="checkbox"
+                        checked={onlyBeneficAuctions}
+                        onChange={(e) => setOnlyBeneficAuctions(e.target.checked)}
+                        className="peer sr-only"
+                      />
+                      <div className="peer h-5 w-9 rounded-full bg-line after:absolute after:left-[2px] after:top-[2px] after:h-4 after:w-4 after:rounded-full after:bg-white after:transition-all after:content-[''] peer-checked:bg-jade-500 peer-checked:after:translate-x-full" />
+                    </label>
+                  </div>
+                  <p className="mt-1.5 text-[11px] leading-tight text-sage-500">
+                    Artículos cuya puja apoya a comedores, albergues y bibliotecas de Chimbote.
+                  </p>
+                </div>
+
+                {/* 5. Tarjeta de Transparencia de Moneda Ficticia */}
+                <div className="rounded-2xl border border-amber-300 bg-amber-50/70 p-4 text-xs">
+                  <div className="flex items-center gap-2 text-amber-900 font-bold mb-1">
+                    <Gavel size={15} className="text-amber-700" />
+                    <span>Módulo de Pujas Didáctico</span>
+                  </div>
+                  <p className="text-[11px] leading-relaxed text-amber-900/80">
+                    Los montos en Soles (S/) son simbólicos para simular pujas en artículos escasos o benéficos. No se debitará dinero de tus cuentas bancarias ni se cobran comisiones.
                   </p>
                 </div>
               </>
@@ -1192,88 +1362,95 @@ export default function Feed({
             </div>
           )}
 
-          {/* SECCIÓN 4: SUBASTAS SIMULADAS (Diferenciada visualmente y con advertencia explícita) */}
+          {/* SECCIÓN 4: SUBASTAS SIMULADAS */}
           {activeSection === "subastas" && (
             <div>
-              {/* Advertencia obligatoria sobre dinero simulado */}
-              <div className="mb-6 rounded-2xl border-2 border-amber-500/40 bg-amber-50/70 p-5">
+              <div className="mb-6 border-b border-line pb-4 flex flex-wrap items-end justify-between gap-4">
+                <div>
+                  <span className="text-xs font-bold uppercase tracking-wider text-amber-700">
+                    Artículos Singulares & Fin Social
+                  </span>
+                  <h1 className="font-display text-2xl font-semibold text-ink">
+                    Subastas Benéficas Simuladas en {APP_CONFIG.city}
+                  </h1>
+                  <p className="mt-1 text-xs text-sage-500 max-w-2xl leading-relaxed">
+                    Pujas didácticas con moneda simulada para artículos de colección, fotografía, ciencia e instrumentos. Los intercambios benéficos apoyan a comedores y albergues locales.
+                  </p>
+                </div>
+
+                {/* Contador y Limpiador de filtros */}
+                <div className="flex items-center gap-3">
+                  <span className="text-xs text-sage-600 font-medium">
+                    {filteredAuctions.length} de {auctionList.length} subastas activas
+                  </span>
+                  {(auctionSearch || auctionCategory !== "Todas" || auctionZone !== "Todas" || onlyBeneficAuctions) && (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setAuctionSearch("");
+                        setAuctionCategory("Todas");
+                        setAuctionZone("Todas");
+                        setOnlyBeneficAuctions(false);
+                      }}
+                      className="text-xs font-semibold text-amber-700 hover:underline cursor-pointer"
+                    >
+                      Limpiar filtros
+                    </button>
+                  )}
+                </div>
+              </div>
+
+              {/* Advertencia de transparencia y política de moneda ficticia */}
+              <div className="mb-6 rounded-2xl border border-amber-300 bg-amber-50/70 p-4 sm:p-5">
                 <div className="flex items-start gap-3">
-                  <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-amber-500 text-ink">
+                  <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-xl bg-amber-500 text-ink shadow-xs">
                     <AlertCircle size={18} />
                   </div>
                   <div>
-                    <h2 className="font-display text-base font-bold text-ink">
-                      Módulo Especial: Subastas Benéficas Simuladas
+                    <h2 className="font-display text-sm sm:text-base font-bold text-ink">
+                      Aviso de Transparencia: Moneda Simulada (Sin Cobros Reales)
                     </h2>
                     <p className="mt-1 text-xs leading-relaxed text-ink-soft">
-                      <strong>Aviso de transparencia:</strong> A diferencia del resto de Truekly (donde el trueque es 100% libre y sin dinero), en este módulo experimental los montos indicados en Soles (S/) son <strong>SIMULADOS (dinero ficticio)</strong>. Reservado a usuarios con alto nivel de confianza para apoyar causas benéficas de la comunidad o artículos singulares.
+                      A diferencia del feed habitual (trueque directo sin dinero), en este módulo experimental los montos indicados en Soles (S/) son <strong>SIMULADOS (dinero ficticio para pujas didácticas)</strong>. Permite acceder a objetos de alta demanda y canalizar aportes solidarios hacia ONGs registradas en Chimbote.
                     </p>
                   </div>
                 </div>
               </div>
 
-              <div className="grid gap-6 sm:grid-cols-2">
-                {mockSimulatedAuctions.map((auc) => (
-                  <article
-                    key={auc.id}
-                    className="flex flex-col overflow-hidden rounded-2xl border-2 border-amber-500/30 bg-white shadow-sm"
+              {/* Listado de tarjetas de subastas */}
+              {filteredAuctions.length === 0 ? (
+                <div className="rounded-2xl border border-line bg-white p-12 text-center">
+                  <p className="font-display text-base font-bold text-ink">
+                    No se encontraron subastas con los filtros seleccionados
+                  </p>
+                  <p className="mt-1 text-xs text-sage-500">
+                    Prueba cambiando el rubro, la zona o borrando los términos de búsqueda.
+                  </p>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setAuctionSearch("");
+                      setAuctionCategory("Todas");
+                      setAuctionZone("Todas");
+                      setOnlyBeneficAuctions(false);
+                    }}
+                    className="mt-4 inline-flex items-center gap-1.5 rounded-full bg-amber-500 px-4 py-2 text-xs font-bold text-ink transition hover:bg-amber-600 cursor-pointer"
                   >
-                    <div className="relative aspect-[16/9] w-full bg-paper">
-                      <img
-                        src={auc.image}
-                        alt={auc.title}
-                        className="h-full w-full object-cover"
-                      />
-                      <span className="absolute left-3 top-3 inline-flex items-center gap-1 rounded-full bg-amber-500 px-2.5 py-1 text-xs font-bold text-ink">
-                        <Gavel size={12} /> Subasta Simulada
-                      </span>
-                      <span className="absolute bottom-3 left-3 inline-flex items-center gap-1 rounded-full bg-ink/75 px-2.5 py-1 text-xs text-paper backdrop-blur-sm">
-                        <Clock size={12} className="text-amber-400" />
-                        {auc.hoursRemaining}h restantes
-                      </span>
-                    </div>
-
-                    <div className="flex flex-1 flex-col p-5">
-                      <h3 className="font-display text-base font-bold text-ink">
-                        {auc.title}
-                      </h3>
-
-                      <p className="mt-1 text-xs text-sage-500">
-                        Vendedor: <strong className="text-ink">{auc.seller}</strong> (Confianza: {auc.trustScore}★)
-                      </p>
-
-                      {auc.isBenefic && auc.beneficEntity && (
-                        <div className="mt-2.5 rounded-lg bg-jade-50 px-2.5 py-1 text-[11px] font-semibold text-jade-700">
-                          {auc.beneficEntity}
-                        </div>
-                      )}
-
-                      {/* Recuadro de Puja Simulada en Soles Ficticios */}
-                      <div className="mt-4 rounded-xl border border-amber-500/30 bg-amber-50/50 p-3">
-                        <div className="flex items-center justify-between text-xs">
-                          <span className="text-sage-500">Puja actual (Simulada):</span>
-                          <span className="font-display text-lg font-bold text-ink">
-                            S/ {auc.currentBidSimulated}.00
-                          </span>
-                        </div>
-                        <div className="mt-1 flex items-center justify-between text-[11px] text-sage-500">
-                          <span>Base simulada: S/ {auc.initialBidSimulated}</span>
-                          <span>{auc.bidsCount} pujas simuladas</span>
-                        </div>
-                      </div>
-
-                      <div className="mt-5 border-t border-line pt-3">
-                        <button
-                          type="button"
-                          className="w-full rounded-full bg-amber-500 py-2.5 text-xs font-bold text-ink shadow-sm transition hover:bg-amber-600"
-                        >
-                          Realizar puja simulada
-                        </button>
-                      </div>
-                    </div>
-                  </article>
-                ))}
-              </div>
+                    Ver todas las subastas
+                  </button>
+                </div>
+              ) : (
+                <div className="grid gap-6 sm:grid-cols-2">
+                  {filteredAuctions.map((auc) => (
+                    <AuctionCard
+                      key={auc.id}
+                      auction={auc}
+                      onBid={(a) => setSelectedAuctionForBid(a)}
+                      onViewDetails={(a) => setSelectedAuctionForDetail(a)}
+                    />
+                  ))}
+                </div>
+              )}
             </div>
           )}
         </main>
@@ -1347,6 +1524,23 @@ export default function Feed({
         onClose={() => setSelectedCauseForDonation(null)}
         currentUser={user}
         onRequireAuth={onOpenAuth}
+      />
+
+      {/* Modales para Subastas Benéficas Simuladas */}
+      <AuctionDetailModal
+        auction={selectedAuctionForDetail}
+        onClose={() => setSelectedAuctionForDetail(null)}
+        onBid={(a) => setSelectedAuctionForBid(a)}
+      />
+
+      <BidModal
+        key={selectedAuctionForBid?.id || "bid-modal"}
+        auction={selectedAuctionForBid}
+        isOpen={Boolean(selectedAuctionForBid)}
+        onClose={() => setSelectedAuctionForBid(null)}
+        currentUser={user}
+        onRequireAuth={onOpenAuth}
+        onBidSuccess={handleBidSuccess}
       />
     </div>
   );

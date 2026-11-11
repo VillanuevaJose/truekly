@@ -55,20 +55,7 @@ export type Community = {
 
 export type { CauseSocial, CauseCategory } from "./mockCauses";
 
-export type SimulatedAuction = {
-  id: string;
-  title: string;
-  image: string;
-  zone: string;
-  seller: string;
-  trustScore: number;
-  initialBidSimulated: number; // Simulado S/
-  currentBidSimulated: number; // Simulado S/
-  bidsCount: number;
-  hoursRemaining: number;
-  isBenefic: boolean;
-  beneficEntity?: string;
-};
+export type { SimulatedAuction, AuctionCategory, SimulatedBid } from "./mockAuctions";
 
 export const CHIMBOTE_ZONES: Zone[] = [
   "Todas",
@@ -743,33 +730,4 @@ export const products: Product[] = [
 
 export { mockCommunities } from "./mockCommunities";
 export { mockCauses } from "./mockCauses";
-
-export const mockSimulatedAuctions: SimulatedAuction[] = [
-  {
-    id: "auc-1",
-    title: "Cámara Réflex Canon EOS T6 + 2 Lentes",
-    image: "/products/camara-canon.jpg",
-    zone: "Casco Urbano, Chimbote",
-    seller: "Marcos L. (Docente de Fotografía)",
-    trustScore: 4.95,
-    initialBidSimulated: 250,
-    currentBidSimulated: 380,
-    bidsCount: 9,
-    hoursRemaining: 18,
-    isBenefic: true,
-    beneficEntity: "50% destinado al Comedor San Pedrito",
-  },
-  {
-    id: "auc-2",
-    title: "Telescopio Astronómico Celestrón 70mm",
-    image: "/products/telescopio.jpg",
-    zone: "Nuevo Chimbote",
-    seller: "Patricia B. (Usuario Verificado)",
-    trustScore: 4.88,
-    initialBidSimulated: 180,
-    currentBidSimulated: 240,
-    bidsCount: 6,
-    hoursRemaining: 32,
-    isBenefic: false,
-  },
-];
+export { mockSimulatedAuctions } from "./mockAuctions";
