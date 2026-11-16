@@ -77,7 +77,7 @@ export function PublishPhotosStep({ data, onChange }: Props) {
           onDragOver={(e) => e.preventDefault()}
           onDrop={onDrop}
           onClick={() => fileInputRef.current?.click()}
-          className="cursor-pointer rounded-2xl border-2 border-dashed border-line bg-paper/60 p-5 text-center transition hover:border-jade-500 hover:bg-jade-50/30"
+          className="cursor-pointer rounded-2xl border-2 border-dashed border-line dark:border-white/10 bg-paper/60 dark:bg-[#181C1A]/60 p-5 text-center transition hover:border-jade-500 dark:hover:border-jade-400 hover:bg-jade-50/30 dark:hover:bg-jade-500/10"
           role="button"
           tabIndex={0}
           onKeyDown={(e) => {
@@ -96,13 +96,13 @@ export function PublishPhotosStep({ data, onChange }: Props) {
             className="hidden"
             onChange={(e: ChangeEvent<HTMLInputElement>) => handleFiles(e.target.files)}
           />
-          <div className="mx-auto flex h-10 w-10 items-center justify-center rounded-full bg-white shadow-xs text-jade-700">
+          <div className="mx-auto flex h-10 w-10 items-center justify-center rounded-full bg-white dark:bg-[#222824] shadow-xs text-jade-700 dark:text-jade-400">
             <Upload className="h-5 w-5" />
           </div>
           <p className="mt-2 text-xs font-semibold text-ink">
             {isProcessing ? "Optimizando fotos..." : "Toca aquí o arrastra tus fotos"}
           </p>
-          <p className="mt-0.5 text-[11px] text-sage-500">
+          <p className="mt-0.5 text-[11px] text-sage-500 dark:text-sage-400">
             JPG, PNG o WEBP. Optimizadas en tu dispositivo sin consumir datos.
           </p>
         </div>
@@ -120,7 +120,7 @@ export function PublishPhotosStep({ data, onChange }: Props) {
             {data.photos.map((src, idx) => (
               <div
                 key={idx}
-                className="group relative aspect-square overflow-hidden rounded-xl border border-line bg-white shadow-2xs"
+                className="group relative aspect-square overflow-hidden rounded-xl border border-line dark:border-white/10 bg-white dark:bg-[#181C1A] shadow-2xs"
               >
                 <img src={src} alt={`Foto ${idx + 1}`} className="h-full w-full object-cover" />
                 {idx === 0 && (
@@ -151,7 +151,7 @@ export function PublishPhotosStep({ data, onChange }: Props) {
           <label htmlFor="pub-title" className="text-xs font-semibold uppercase tracking-wider text-ink">
             Título del objeto <span className="text-amber-600">*</span>
           </label>
-          <span className="text-[11px] text-sage-400">{data.title.length}/80</span>
+          <span className="text-[11px] text-sage-400 dark:text-sage-500">{data.title.length}/80</span>
         </div>
         <input
           id="pub-title"
@@ -160,7 +160,7 @@ export function PublishPhotosStep({ data, onChange }: Props) {
           value={data.title}
           onChange={(e) => onChange({ title: e.target.value })}
           placeholder="Ej: Teclado mecánico Keychron Q1 Pro inalámbrico"
-          className="w-full rounded-xl border border-line bg-white px-3.5 py-2.5 text-xs text-ink placeholder:text-sage-400 focus:border-jade-500 focus:outline-none focus:ring-1 focus:ring-jade-500"
+          className="w-full rounded-xl border border-line dark:border-white/10 bg-white dark:bg-[#181C1A] px-3.5 py-2.5 text-xs text-ink dark:text-white placeholder:text-sage-400 dark:placeholder:text-sage-500 focus:border-jade-500 dark:focus:border-jade-400 focus:outline-none focus:ring-1 focus:ring-jade-500"
         />
       </div>
 
@@ -179,8 +179,8 @@ export function PublishPhotosStep({ data, onChange }: Props) {
                 onClick={() => onChange({ category: cat.id as Category })}
                 className={`flex items-center gap-2 rounded-xl border px-3 py-2 text-xs font-medium transition ${
                   isSelected
-                    ? "border-jade-600 bg-jade-50/50 text-jade-800 shadow-2xs"
-                    : "border-line bg-white text-sage-600 hover:bg-paper hover:text-ink"
+                    ? "border-jade-600 dark:border-jade-500 bg-jade-50/50 dark:bg-jade-500/20 text-jade-800 dark:text-jade-300 shadow-2xs"
+                    : "border-line dark:border-white/10 bg-white dark:bg-[#181C1A] text-sage-600 dark:text-sage-300 hover:bg-paper dark:hover:bg-[#222824] hover:text-ink dark:hover:text-white"
                 }`}
               >
                 <ImageIcon className="h-3.5 w-3.5 shrink-0 opacity-70" />

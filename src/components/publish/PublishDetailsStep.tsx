@@ -25,8 +25,8 @@ export function PublishDetailsStep({ data, onChange }: Props) {
                 onClick={() => onChange({ condition: cond.id as Condition })}
                 className={`relative flex flex-col items-start p-3 rounded-xl border text-left transition ${
                   isSelected
-                    ? "border-jade-600 bg-jade-50/40 text-jade-900 shadow-2xs"
-                    : "border-line bg-white text-ink hover:bg-paper"
+                    ? "border-jade-600 dark:border-jade-500 bg-jade-50/40 dark:bg-jade-500/20 text-jade-900 dark:text-jade-200 shadow-2xs"
+                    : "border-line dark:border-white/10 bg-white dark:bg-[#181C1A] text-ink dark:text-white hover:bg-paper dark:hover:bg-[#222824]"
                 }`}
               >
                 <div className="flex w-full items-center justify-between">
@@ -37,7 +37,7 @@ export function PublishDetailsStep({ data, onChange }: Props) {
                     </div>
                   )}
                 </div>
-                <span className="mt-0.5 text-[11px] text-sage-500">{cond.hint}</span>
+                <span className="mt-0.5 text-[11px] text-sage-500 dark:text-sage-400">{cond.hint}</span>
               </button>
             );
           })}
@@ -52,7 +52,7 @@ export function PublishDetailsStep({ data, onChange }: Props) {
           </label>
           <span
             className={`text-[11px] ${
-              data.description.trim().length < 15 ? "text-amber-700" : "text-sage-400"
+              data.description.trim().length < 15 ? "text-amber-700" : "text-sage-400 dark:text-sage-500"
             }`}
           >
             {data.description.length} car. (mínimo 15)
@@ -64,9 +64,9 @@ export function PublishDetailsStep({ data, onChange }: Props) {
           value={data.description}
           onChange={(e) => onChange({ description: e.target.value })}
           placeholder="Menciona tiempo de uso, si incluye cables/caja original, detalles estéticos o por qué deseas cambiarlo..."
-          className="w-full rounded-xl border border-line bg-white p-3 text-xs text-ink placeholder:text-sage-400 focus:border-jade-500 focus:outline-none focus:ring-1 focus:ring-jade-500"
+          className="w-full rounded-xl border border-line dark:border-white/10 bg-white dark:bg-[#181C1A] p-3 text-xs text-ink dark:text-white placeholder:text-sage-400 dark:placeholder:text-sage-500 focus:border-jade-500 dark:focus:border-jade-400 focus:outline-none focus:ring-1 focus:ring-jade-500"
         />
-        <p className="mt-1 text-[11px] text-sage-500">
+        <p className="mt-1 text-[11px] text-sage-500 dark:text-sage-400">
           Una descripción honesta y clara acelera los acuerdos y construye reputación comunitaria.
         </p>
       </div>

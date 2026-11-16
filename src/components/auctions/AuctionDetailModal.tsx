@@ -52,7 +52,7 @@ export function AuctionDetailModal({
     >
       <div
         ref={modalRef}
-        className="relative w-full max-w-2xl max-h-[90vh] overflow-y-auto rounded-3xl border border-line bg-white shadow-2xl animate-in zoom-in-95 duration-200 no-scrollbar"
+        className="relative w-full max-w-2xl max-h-[90vh] overflow-y-auto rounded-3xl border border-line bg-white dark:bg-[#121413] dark:border-white/10 shadow-2xl animate-in zoom-in-95 duration-200 no-scrollbar"
       >
         {/* Cabecera con Imagen de portada */}
         <div className="relative h-60 sm:h-72 w-full bg-paper overflow-hidden">
@@ -164,7 +164,7 @@ export function AuctionDetailModal({
               <span>Historial de Pujas Recientes</span>
               <span className="text-[11px] font-normal text-sage-400">Total: {auction.bidsHistory.length}</span>
             </h2>
-            <div className="rounded-2xl border border-line bg-white overflow-hidden divide-y divide-line">
+            <div className="rounded-2xl border border-line dark:border-white/10 bg-white dark:bg-[#161917] overflow-hidden divide-y divide-line dark:divide-white/10">
               {auction.bidsHistory.map((bid) => (
                 <div key={bid.id} className="flex items-center justify-between p-3 text-xs hover:bg-paper/50 transition">
                   <div className="flex items-center gap-2.5 min-w-0">
@@ -220,7 +220,7 @@ export function AuctionDetailModal({
             <button
               type="button"
               onClick={onClose}
-              className="w-full sm:w-auto rounded-full border border-line bg-white px-5 py-2.5 text-xs font-semibold text-ink hover:bg-paper transition cursor-pointer"
+              className="w-full sm:w-auto rounded-full border border-line dark:border-white/15 bg-white dark:bg-[#181C1A] px-5 py-2.5 text-xs font-semibold text-ink dark:text-white hover:bg-paper dark:hover:bg-white/10 transition cursor-pointer"
             >
               Volver al catálogo
             </button>

@@ -27,6 +27,7 @@ import {
   LogOut,
   Sun,
   Moon,
+  X,
 } from "lucide-react";
 import { useAuth } from "../context/AuthContext";
 import { useTheme } from "../context/ThemeContext";
@@ -105,10 +106,10 @@ function ProductCard({
   return (
     <article
       onClick={() => onSelect?.(product)}
-      className="group flex flex-col overflow-hidden rounded-2xl border border-line bg-white transition-all duration-200 hover:-translate-y-0.5 hover:border-jade-400 hover:shadow-[0_16px_32px_-16px_rgba(15,109,95,0.25)] cursor-pointer"
+      className="group flex flex-col overflow-hidden rounded-2xl border border-line bg-white dark:bg-[#121413] dark:border-white/10 transition-all duration-200 hover:-translate-y-0.5 hover:border-jade-400 hover:shadow-[0_16px_32px_-16px_rgba(15,109,95,0.25)] cursor-pointer"
     >
       {/* Imagen completa con metadatos contextuales */}
-      <div className="relative aspect-[4/3] w-full overflow-hidden bg-paper">
+      <div className="relative aspect-[4/3] w-full overflow-hidden bg-paper dark:bg-[#181C1A]">
         <img
           src={product.image}
           alt={product.title}
@@ -127,7 +128,7 @@ function ProductCard({
           onClick={() => setSaved((s) => !s)}
           aria-pressed={saved}
           aria-label={saved ? "Quitar de favoritos" : "Guardar en favoritos"}
-          className="absolute right-3 top-3 flex h-8 w-8 items-center justify-center rounded-full bg-white/95 text-ink-soft shadow-sm transition hover:scale-110 hover:text-jade-500"
+          className="absolute right-3 top-3 flex h-8 w-8 items-center justify-center rounded-full bg-white/95 dark:bg-[#181C1A]/95 text-ink-soft dark:text-white/80 shadow-sm transition hover:scale-110 hover:text-jade-500"
         >
           <Heart
             size={16}
@@ -143,24 +144,24 @@ function ProductCard({
 
       {/* Contenido descriptivo del trueque */}
       <div className="flex flex-1 flex-col p-4 sm:p-5">
-        <div className="flex items-center gap-2 text-xs font-medium text-jade-600">
+        <div className="flex items-center gap-2 text-xs font-medium text-jade-600 dark:text-jade-400">
           <span>{product.category}</span>
-          <span className="text-line">·</span>
+          <span className="text-line dark:text-white/20">·</span>
           <span className="rounded-full bg-jade-50 px-2 py-0.5 text-[11px] font-semibold text-jade-700">
             {product.condition}
           </span>
         </div>
 
-        <h3 className="mt-2 font-display text-base font-semibold leading-snug text-ink group-hover:text-jade-600">
+        <h3 className="mt-2 font-display text-base font-semibold leading-snug text-ink dark:text-white group-hover:text-jade-600 dark:group-hover:text-jade-400">
           {product.title}
         </h3>
 
-        <div className="mt-2.5 rounded-xl border border-line bg-paper/60 p-2.5">
-          <span className="flex items-center gap-1 text-[11px] font-bold uppercase tracking-wide text-sage-500">
+        <div className="mt-2.5 rounded-xl border border-line bg-paper/60 dark:bg-[#181C1A]/70 p-2.5">
+          <span className="flex items-center gap-1 text-[11px] font-bold uppercase tracking-wide text-sage-500 dark:text-white/60">
             <Repeat size={12} className="text-jade-500" />
             Busca a cambio:
           </span>
-          <p className="mt-1 line-clamp-2 text-xs font-medium leading-relaxed text-ink">
+          <p className="mt-1 line-clamp-2 text-xs font-medium leading-relaxed text-ink dark:text-white/90">
             {product.wantsInReturn}
           </p>
         </div>
@@ -171,12 +172,12 @@ function ProductCard({
             <img
               src={product.owner.avatar}
               alt={product.owner.name}
-              className="h-7 w-7 rounded-full object-cover ring-1 ring-line"
+              className="h-7 w-7 rounded-full object-cover ring-1 ring-line dark:ring-white/10"
             />
-            <span className="text-xs font-medium text-ink">{product.owner.name}</span>
+            <span className="text-xs font-medium text-ink dark:text-white/90">{product.owner.name}</span>
           </div>
 
-          <div className="flex items-center gap-1 text-xs text-sage-500">
+          <div className="flex items-center gap-1 text-xs text-sage-500 dark:text-white/60">
             <Star size={13} className="fill-amber-500 text-amber-500" />
             <span className="font-semibold text-ink">{product.rating}</span>
             <span className="text-line">·</span>
@@ -382,6 +383,7 @@ export default function Feed({
   const [nearMeEnabled, setNearMeEnabled] = useState(false);
   const [selectedZone, setSelectedZone] = useState<Zone>("Casco Urbano");
 
+  const [isMobileFiltersOpen, setIsMobileFiltersOpen] = useState(false);
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
 
@@ -442,6 +444,498 @@ export default function Feed({
       .sort((a, b) => Number(b.isFeatured) - Number(a.isFeatured));
   }, [productList, activeCategory, activeCondition, nearMeEnabled, selectedZone, query]);
 
+  const activeFilterCount = useMemo(() => {
+    if (activeSection === "trueques") {
+      return (
+        (activeCategory !== "Todos" ? 1 : 0) +
+        (activeCondition !== "Todas" ? 1 : 0) +
+        (nearMeEnabled ? 1 : 0)
+      );
+    }
+    if (activeSection === "comunidades") {
+      return (
+        (communityCategory !== "Todas" ? 1 : 0) +
+        (communityZone !== "Todas" ? 1 : 0) +
+        (onlyJoinedCommunities ? 1 : 0)
+      );
+    }
+    if (activeSection === "causas") {
+      return (
+        (causeCategory !== "Todas" ? 1 : 0) +
+        (causeZone !== "Todas" ? 1 : 0) +
+        (onlyUrgentCauses ? 1 : 0)
+      );
+    }
+    if (activeSection === "subastas") {
+      return (
+        (auctionCategory !== "Todas" ? 1 : 0) +
+        (auctionZone !== "Todas" ? 1 : 0) +
+        (onlyBeneficAuctions ? 1 : 0)
+      );
+    }
+    return 0;
+  }, [
+    activeSection,
+    activeCategory,
+    activeCondition,
+    nearMeEnabled,
+    communityCategory,
+    communityZone,
+    onlyJoinedCommunities,
+    causeCategory,
+    causeZone,
+    onlyUrgentCauses,
+    auctionCategory,
+    auctionZone,
+    onlyBeneficAuctions,
+  ]);
+
+  const handleResetActiveFilters = () => {
+    if (activeSection === "trueques") {
+      setActiveCategory("Todos");
+      setActiveCondition("Todas");
+      setNearMeEnabled(false);
+      setQuery("");
+    } else if (activeSection === "comunidades") {
+      setCommunityCategory("Todas");
+      setCommunityZone("Todas");
+      setOnlyJoinedCommunities(false);
+      setCommunitySearch("");
+    } else if (activeSection === "causas") {
+      setCauseCategory("Todas");
+      setCauseZone("Todas");
+      setOnlyUrgentCauses(false);
+      setCauseSearch("");
+    } else if (activeSection === "subastas") {
+      setAuctionCategory("Todas");
+      setAuctionZone("Todas");
+      setOnlyBeneficAuctions(false);
+      setAuctionSearch("");
+    }
+  };
+
+  const renderSidebarFilters = (isMobile = false) => (
+    <div className={`space-y-6 ${isMobile ? "" : "sticky top-32 max-h-[calc(100vh-140px)] overflow-y-auto pr-1 no-scrollbar"}`}>
+      {activeSection === "comunidades" ? (
+        <>
+          {/* 1. Buscador rápido de comunidades */}
+          <div className="rounded-2xl border border-line bg-white dark:bg-[#121413] dark:border-white/10 p-4">
+            <label htmlFor={isMobile ? "m-search-comm" : "search-comm"} className="block text-xs font-bold text-ink dark:text-white mb-1.5">
+              Buscar comunidades
+            </label>
+            <div className="relative">
+              <Search className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-sage-400 dark:text-white/40" />
+              <input
+                id={isMobile ? "m-search-comm" : "search-comm"}
+                type="text"
+                value={communitySearch}
+                onChange={(e) => setCommunitySearch(e.target.value)}
+                placeholder="Ej. ciclistas, libros..."
+                className="w-full h-9 pl-8 pr-2.5 rounded-xl border border-line dark:border-white/10 bg-paper dark:bg-[#181C1A] text-xs text-ink dark:text-white placeholder:text-sage-400 dark:placeholder:text-white/40 outline-none transition focus:border-jade-500 focus:bg-white dark:focus:bg-[#1D211F]"
+              />
+            </div>
+          </div>
+
+          {/* 2. Filtro por Categoría de Comunidad */}
+          <div>
+            <p className="mb-2 text-xs font-bold uppercase tracking-wider text-sage-500 dark:text-white/60">
+              Por Temática
+            </p>
+            <nav className="space-y-1 max-h-60 overflow-y-auto pr-1 no-scrollbar">
+              {communityCategories.map((cat) => {
+                const active = communityCategory === cat;
+                return (
+                  <button
+                    key={cat}
+                    type="button"
+                    onClick={() => setCommunityCategory(cat)}
+                    className={`flex w-full items-center justify-between rounded-xl px-3 py-2 text-xs font-medium transition ${
+                      active
+                        ? "bg-jade-500 text-paper font-semibold"
+                        : "text-ink-soft dark:text-white/70 hover:bg-jade-50 dark:hover:bg-white/10 hover:text-jade-700 dark:hover:text-white"
+                    }`}
+                  >
+                    <span>{cat}</span>
+                    {active && <CheckCircle2 size={13} className="text-paper" />}
+                  </button>
+                );
+              })}
+            </nav>
+          </div>
+
+          {/* 3. Filtro por Zona de Chimbote */}
+          <div className="rounded-2xl border border-line bg-white dark:bg-[#121413] dark:border-white/10 p-4">
+            <label htmlFor={isMobile ? "m-select-comm-zona" : "select-comm-zona"} className="flex items-center gap-1.5 text-xs font-bold text-ink dark:text-white mb-2">
+              <MapPin size={14} className="text-jade-500" />
+              Zona / Distrito
+            </label>
+            <select
+              id={isMobile ? "m-select-comm-zona" : "select-comm-zona"}
+              value={communityZone}
+              onChange={(e) => setCommunityZone(e.target.value)}
+              className="w-full rounded-xl border border-line dark:border-white/10 bg-paper dark:bg-[#181C1A] px-2.5 py-2 text-xs text-ink dark:text-white outline-none focus:border-jade-500"
+            >
+              <option value="Todas">Todas las zonas ({mockCommunities.length})</option>
+              <option value="Casco Urbano">Casco Urbano</option>
+              <option value="Nuevo Chimbote">Nuevo Chimbote</option>
+              <option value="Buenos Aires">Buenos Aires</option>
+              <option value="Bellamar">Bellamar</option>
+              <option value="La Caleta">La Caleta</option>
+              <option value="21 de Abril">21 de Abril</option>
+            </select>
+          </div>
+
+          {/* 4. Switch "Mis Comunidades" */}
+          <div className="rounded-2xl border border-line bg-white dark:bg-[#121413] dark:border-white/10 p-4">
+            <div className="flex items-center justify-between">
+              <span className="flex items-center gap-1.5 text-xs font-bold text-ink dark:text-white">
+                <Users size={14} className="text-jade-500" />
+                Mis comunidades
+              </span>
+              <label className="relative inline-flex cursor-pointer items-center">
+                <input
+                  type="checkbox"
+                  checked={onlyJoinedCommunities}
+                  onChange={(e) => setOnlyJoinedCommunities(e.target.checked)}
+                  className="peer sr-only"
+                />
+                <div className="peer h-5 w-9 rounded-full bg-line dark:bg-white/15 after:absolute after:left-[2px] after:top-[2px] after:h-4 after:w-4 after:rounded-full after:bg-white after:transition-all after:content-[''] peer-checked:bg-jade-500 peer-checked:after:translate-x-full" />
+              </label>
+            </div>
+            <p className="mt-1.5 text-[11px] leading-tight text-sage-500 dark:text-white/60">
+              Mostrar solo las comunidades a las que te has unido ({joinedCommunityIds.length}).
+            </p>
+          </div>
+        </>
+      ) : activeSection === "causas" ? (
+        <>
+          {/* 1. Buscador rápido de causas y objetos */}
+          <div className="rounded-2xl border border-line bg-white dark:bg-[#121413] dark:border-white/10 p-4">
+            <label htmlFor={isMobile ? "m-search-causes" : "search-causes"} className="block text-xs font-bold text-ink dark:text-white mb-1.5">
+              Buscar causas u objetos
+            </label>
+            <div className="relative">
+              <Search className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-sage-400 dark:text-white/40" />
+              <input
+                id={isMobile ? "m-search-causes" : "search-causes"}
+                type="text"
+                value={causeSearch}
+                onChange={(e) => setCauseSearch(e.target.value)}
+                placeholder="Ej. mantas, ollas, libros..."
+                className="w-full h-9 pl-8 pr-2.5 rounded-xl border border-line dark:border-white/10 bg-paper dark:bg-[#181C1A] text-xs text-ink dark:text-white placeholder:text-sage-400 dark:placeholder:text-white/40 outline-none transition focus:border-jade-500 focus:bg-white dark:focus:bg-[#1D211F]"
+              />
+            </div>
+          </div>
+
+          {/* 2. Filtro por Temática Solidaria */}
+          <div>
+            <p className="mb-2 text-xs font-bold uppercase tracking-wider text-sage-500 dark:text-white/60">
+              Temática Solidaria
+            </p>
+            <nav className="space-y-1">
+              {causeCategories.map((cat) => {
+                const active = causeCategory === cat;
+                return (
+                  <button
+                    key={cat}
+                    type="button"
+                    onClick={() => setCauseCategory(cat)}
+                    className={`flex w-full items-center justify-between rounded-xl px-3 py-2 text-xs font-medium transition ${
+                      active
+                        ? "bg-jade-500 text-paper font-semibold"
+                        : "text-ink-soft dark:text-white/70 hover:bg-jade-50 dark:hover:bg-white/10 hover:text-jade-700 dark:hover:text-white"
+                    }`}
+                  >
+                    <span className="truncate">{cat}</span>
+                    {active && <CheckCircle2 size={13} className="shrink-0" />}
+                  </button>
+                );
+              })}
+            </nav>
+          </div>
+
+          {/* 3. Filtro por Zona */}
+          <div className="rounded-2xl border border-line bg-white dark:bg-[#121413] dark:border-white/10 p-4">
+            <label htmlFor={isMobile ? "m-cause-zone-select" : "cause-zone-select"} className="flex items-center gap-1.5 text-xs font-bold text-ink dark:text-white mb-2">
+              <MapPin size={14} className="text-jade-500" />
+              Zona / Distrito
+            </label>
+            <select
+              id={isMobile ? "m-cause-zone-select" : "cause-zone-select"}
+              value={causeZone}
+              onChange={(e) => setCauseZone(e.target.value)}
+              className="w-full rounded-xl border border-line dark:border-white/10 bg-paper dark:bg-[#181C1A] px-2.5 py-2 text-xs text-ink dark:text-white outline-none focus:border-jade-500"
+            >
+              <option value="Todas">Todas las zonas ({mockCauses.length})</option>
+              <option value="Nuevo Chimbote">Nuevo Chimbote</option>
+              <option value="Casco Urbano">Casco Urbano</option>
+              <option value="Bellamar">Bellamar</option>
+              <option value="La Caleta">La Caleta</option>
+              <option value="27 de Octubre">27 de Octubre</option>
+              <option value="Miraflores">Miraflores</option>
+              <option value="San Pedro">San Pedro</option>
+            </select>
+          </div>
+
+          {/* 4. Switch Solo Urgentes */}
+          <div className="rounded-2xl border border-line bg-white dark:bg-[#121413] dark:border-white/10 p-4">
+            <div className="flex items-center justify-between">
+              <span className="flex items-center gap-1.5 text-xs font-bold text-ink dark:text-white">
+                <Clock size={14} className="text-rose-500" />
+                Solo causas urgentes
+              </span>
+              <label className="relative inline-flex cursor-pointer items-center">
+                <input
+                  type="checkbox"
+                  checked={onlyUrgentCauses}
+                  onChange={(e) => setOnlyUrgentCauses(e.target.checked)}
+                  className="peer sr-only"
+                />
+                <div className="peer h-5 w-9 rounded-full bg-line dark:bg-white/15 after:absolute after:left-[2px] after:top-[2px] after:h-4 after:w-4 after:rounded-full after:bg-white after:transition-all after:content-[''] peer-checked:bg-rose-500 peer-checked:after:translate-x-full" />
+              </label>
+            </div>
+            <p className="mt-1.5 text-[11px] leading-tight text-sage-500 dark:text-white/60">
+              Muestra causas con necesidades prioritarias inmediatas.
+            </p>
+          </div>
+
+          {/* 5. Tarjeta de Confianza y Cero Dinero */}
+          <div className="rounded-2xl border border-jade-200/80 dark:border-jade-500/30 bg-jade-50/60 dark:bg-jade-950/30 p-4 text-xs">
+            <div className="flex items-center gap-2 text-jade-800 dark:text-jade-300 font-bold mb-1">
+              <ShieldCheck size={16} className="text-jade-600 dark:text-jade-400" />
+              <span>Garantía Truekly</span>
+            </div>
+            <p className="text-[11px] leading-relaxed text-jade-900/80 dark:text-jade-200/80">
+              En Truekly las causas sociales no reciben dinero en efectivo ni donaciones monetarias. Toda colaboración es exclusivamente en bienes útiles entregados en Puntos Seguros autorizados.
+            </p>
+          </div>
+        </>
+      ) : activeSection === "subastas" ? (
+        <>
+          {/* 1. Buscador rápido de subastas */}
+          <div className="rounded-2xl border border-line bg-white dark:bg-[#121413] dark:border-white/10 p-4">
+            <label htmlFor={isMobile ? "m-search-auctions" : "search-auctions"} className="block text-xs font-bold text-ink dark:text-white mb-1.5">
+              Buscar en subastas
+            </label>
+            <div className="relative">
+              <Search className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-sage-400 dark:text-white/40" />
+              <input
+                id={isMobile ? "m-search-auctions" : "search-auctions"}
+                type="text"
+                value={auctionSearch}
+                onChange={(e) => setAuctionSearch(e.target.value)}
+                placeholder="Ej. cámara, telescopio, dron..."
+                className="w-full h-9 pl-8 pr-2.5 rounded-xl border border-line dark:border-white/10 bg-paper dark:bg-[#181C1A] text-xs text-ink dark:text-white placeholder:text-sage-400 dark:placeholder:text-white/40 outline-none transition focus:border-amber-500 focus:bg-white dark:focus:bg-[#1D211F]"
+              />
+            </div>
+          </div>
+
+          {/* 2. Categorías de subasta */}
+          <div>
+            <p className="mb-2 text-xs font-bold uppercase tracking-wider text-sage-500 dark:text-white/60">
+              Especialidad / Rubro
+            </p>
+            <nav className="space-y-1">
+              {auctionCategories.map((cat) => {
+                const active = auctionCategory === cat;
+                return (
+                  <button
+                    key={cat}
+                    type="button"
+                    onClick={() => setAuctionCategory(cat)}
+                    className={`flex w-full items-center justify-between rounded-xl px-3 py-2 text-xs font-medium transition cursor-pointer ${
+                      active
+                        ? "bg-amber-500 text-ink font-bold shadow-xs"
+                        : "text-ink-soft dark:text-white/70 hover:bg-amber-50 dark:hover:bg-amber-950/30 hover:text-amber-800 dark:hover:text-amber-300"
+                    }`}
+                  >
+                    <span className="truncate">{cat}</span>
+                    {active && <CheckCircle2 size={13} className="shrink-0 text-ink" />}
+                  </button>
+                );
+              })}
+            </nav>
+          </div>
+
+          {/* 3. Filtro por Zona */}
+          <div className="rounded-2xl border border-line bg-white dark:bg-[#121413] dark:border-white/10 p-4">
+            <label htmlFor={isMobile ? "m-auction-zone-select" : "auction-zone-select"} className="flex items-center gap-1.5 text-xs font-bold text-ink dark:text-white mb-2">
+              <MapPin size={14} className="text-amber-600" />
+              Zona / Distrito
+            </label>
+            <select
+              id={isMobile ? "m-auction-zone-select" : "auction-zone-select"}
+              value={auctionZone}
+              onChange={(e) => setAuctionZone(e.target.value)}
+              className="w-full rounded-xl border border-line dark:border-white/10 bg-paper dark:bg-[#181C1A] px-2.5 py-2 text-xs text-ink dark:text-white outline-none focus:border-amber-500"
+            >
+              <option value="Todas">Todas las zonas ({auctionList.length})</option>
+              <option value="Nuevo Chimbote">Nuevo Chimbote</option>
+              <option value="Casco Urbano">Casco Urbano</option>
+              <option value="Buenos Aires">Buenos Aires</option>
+              <option value="Bellamar">Bellamar</option>
+              <option value="La Caleta">La Caleta</option>
+            </select>
+          </div>
+
+          {/* 4. Switch Solo Benéficas */}
+          <div className="rounded-2xl border border-line bg-white dark:bg-[#121413] dark:border-white/10 p-4">
+            <div className="flex items-center justify-between">
+              <span className="flex items-center gap-1.5 text-xs font-bold text-ink dark:text-white">
+                <Heart size={14} className="text-jade-600 fill-jade-600" />
+                Solo con fin social
+              </span>
+              <label className="relative inline-flex cursor-pointer items-center">
+                <input
+                  type="checkbox"
+                  checked={onlyBeneficAuctions}
+                  onChange={(e) => setOnlyBeneficAuctions(e.target.checked)}
+                  className="peer sr-only"
+                />
+                <div className="peer h-5 w-9 rounded-full bg-line dark:bg-white/15 after:absolute after:left-[2px] after:top-[2px] after:h-4 after:w-4 after:rounded-full after:bg-white after:transition-all after:content-[''] peer-checked:bg-jade-500 peer-checked:after:translate-x-full" />
+              </label>
+            </div>
+            <p className="mt-1.5 text-[11px] leading-tight text-sage-500 dark:text-white/60">
+              Artículos cuya puja apoya a comedores, albergues y bibliotecas de Chimbote.
+            </p>
+          </div>
+
+          {/* 5. Tarjeta de Transparencia de Moneda Ficticia */}
+          <div className="rounded-2xl border border-amber-300 dark:border-amber-500/30 bg-amber-50/70 dark:bg-amber-950/30 p-4 text-xs">
+            <div className="flex items-center gap-2 text-amber-900 dark:text-amber-300 font-bold mb-1">
+              <Gavel size={15} className="text-amber-700 dark:text-amber-400" />
+              <span>Módulo de Pujas Didáctico</span>
+            </div>
+            <p className="text-[11px] leading-relaxed text-amber-900/80 dark:text-amber-200/80">
+              Los montos en Soles (S/) son simbólicos para simular pujas en artículos escasos o benéficos. No se debitará dinero de tus cuentas bancarias ni se cobran comisiones.
+            </p>
+          </div>
+        </>
+      ) : (
+        <>
+          {/* Categorías de productos */}
+          <div>
+            <p className="mb-2 text-xs font-bold uppercase tracking-wider text-sage-500 dark:text-white/60">
+              Categorías
+            </p>
+            <nav className="space-y-1">
+              {categoryList.map((cat) => {
+                const Icon = categoryIcons[cat];
+                const active = activeCategory === cat;
+                return (
+                  <button
+                    key={cat}
+                    type="button"
+                    onClick={() => {
+                      setActiveCategory(cat);
+                      setActiveSection("trueques");
+                    }}
+                    className={`flex w-full items-center justify-between rounded-xl px-3 py-2 text-xs font-medium transition ${
+                      active
+                        ? "bg-jade-500 text-paper font-semibold"
+                        : "text-ink-soft dark:text-white/70 hover:bg-jade-50 dark:hover:bg-white/10 hover:text-jade-700 dark:hover:text-white"
+                    }`}
+                  >
+                    <span className="flex items-center gap-2.5">
+                      <Icon size={15} />
+                      {cat}
+                    </span>
+                  </button>
+                );
+              })}
+            </nav>
+          </div>
+
+          {/* Toggle Cerca de Mí (Manual por zona, sin GPS) */}
+          <div className="rounded-2xl border border-line bg-white dark:bg-[#121413] dark:border-white/10 p-4">
+            <div className="flex items-center justify-between">
+              <span className="flex items-center gap-1.5 text-xs font-bold text-ink dark:text-white">
+                <MapPin size={14} className="text-jade-500" />
+                Cerca de mí
+              </span>
+              <label className="relative inline-flex cursor-pointer items-center">
+                <input
+                  type="checkbox"
+                  checked={nearMeEnabled}
+                  onChange={(e) => setNearMeEnabled(e.target.checked)}
+                  className="peer sr-only"
+                />
+                <div className="peer h-5 w-9 rounded-full bg-line dark:bg-white/15 after:absolute after:left-[2px] after:top-[2px] after:h-4 after:w-4 after:rounded-full after:bg-white after:transition-all after:content-[''] peer-checked:bg-jade-500 peer-checked:after:translate-x-full" />
+              </label>
+            </div>
+
+            <p className="mt-1.5 text-[11px] leading-tight text-sage-500 dark:text-white/60">
+              Filtro manual por zona (cero GPS por privacidad).
+            </p>
+
+            {nearMeEnabled && (
+              <div className="mt-3 border-t border-line dark:border-white/10 pt-3">
+                <label htmlFor={isMobile ? "m-select-zona" : "select-zona"} className="block text-[11px] font-semibold text-ink dark:text-white">
+                  Selecciona tu sector:
+                </label>
+                <select
+                  id={isMobile ? "m-select-zona" : "select-zona"}
+                  value={selectedZone}
+                  onChange={(e) => setSelectedZone(e.target.value as Zone)}
+                  className="mt-1 w-full rounded-lg border border-line dark:border-white/10 bg-paper dark:bg-[#181C1A] px-2.5 py-1.5 text-xs text-ink dark:text-white outline-none focus:border-jade-500"
+                >
+                  {CHIMBOTE_ZONES.map((z) => (
+                    <option key={z} value={z}>
+                      {z}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            )}
+          </div>
+
+          {/* Filtro por Estado del Producto */}
+          <div className="rounded-2xl border border-line bg-white dark:bg-[#121413] dark:border-white/10 p-4">
+            <p className="flex items-center gap-1.5 text-xs font-bold text-ink dark:text-white">
+              <SlidersHorizontal size={13} className="text-jade-500" />
+              Estado del producto
+            </p>
+            <div className="mt-2.5 space-y-1">
+              {conditionList.map((cond) => {
+                const active = activeCondition === cond;
+                return (
+                  <button
+                    key={cond}
+                    type="button"
+                    onClick={() => {
+                      setActiveCondition(cond);
+                      setActiveSection("trueques");
+                    }}
+                    className={`flex w-full items-center justify-between rounded-lg px-2.5 py-1.5 text-xs transition ${
+                      active
+                        ? "bg-jade-50 dark:bg-jade-950/80 font-semibold text-jade-700 dark:text-jade-300"
+                        : "text-ink-soft dark:text-white/70 hover:bg-paper dark:hover:bg-white/10"
+                    }`}
+                  >
+                    <span>{cond}</span>
+                    {active && <CheckCircle2 size={13} className="text-jade-500" />}
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+
+          {/* Respaldo Comunitario */}
+          <div className="rounded-2xl border border-line dark:border-white/10 bg-jade-50/50 dark:bg-jade-950/30 p-4 text-xs text-jade-700 dark:text-jade-300">
+            <div className="flex items-center gap-2 font-bold text-jade-700 dark:text-jade-400">
+              <ShieldCheck size={16} />
+              <span>Trueque 100% libre</span>
+            </div>
+            <p className="mt-1.5 leading-relaxed text-ink-soft dark:text-white/70 text-[11px]">
+              En Truekly negocias sin dinero ni tasas fijas. Acuerda con la otra persona
+              y elijan un punto seguro de su zona.
+            </p>
+          </div>
+        </>
+      )}
+    </div>
+  );
+
   const handleLandingClick = (e: React.MouseEvent) => {
     if (onNavigateToLanding) {
       e.preventDefault();
@@ -454,8 +948,8 @@ export default function Feed({
   return (
     <div className="min-h-screen bg-paper font-body text-ink antialiased">
       {/* Header principal y barra de navegación por módulos sticky */}
-      <div className="sticky top-0 z-30 bg-white">
-        <header className="border-b border-line bg-white/95 backdrop-blur-sm">
+      <div className="sticky top-0 z-30 bg-white dark:bg-[#0C0E0D]">
+        <header className="border-b border-line bg-white/95 dark:bg-[#0C0E0D]/95 backdrop-blur-sm">
           <div className="mx-auto flex max-w-7xl items-center gap-4 px-4 py-3 sm:px-8">
             <a
               href="#inicio"
@@ -468,7 +962,7 @@ export default function Feed({
                 alt="Truekly"
                 className="h-10 w-10 shrink-0 object-contain"
               />
-              <span className="hidden sm:inline font-display text-xl font-bold leading-none text-ink">
+              <span className="hidden sm:inline font-display text-xl font-bold leading-none text-ink dark:text-white">
                 Truekly
               </span>
             </a>
@@ -477,7 +971,7 @@ export default function Feed({
             <div className="relative flex-1">
               <Search
                 size={16}
-                className="pointer-events-none absolute left-3.5 top-1/2 -translate-y-1/2 text-sage-500"
+                className="pointer-events-none absolute left-3.5 top-1/2 -translate-y-1/2 text-sage-500 dark:text-white/40"
               />
               <input
                 value={query}
@@ -492,7 +986,7 @@ export default function Feed({
                     ? "Buscar artículos singulares, cámaras, instrumentos o causas benéficas..."
                     : "Buscar qué necesitas o qué buscas cambiar..."
                 }
-                className="w-full rounded-full border border-line bg-paper py-2 pl-9 pr-4 text-xs sm:text-sm text-ink outline-none transition placeholder:text-sage-500/80 focus:border-jade-500 focus:bg-white"
+                className="w-full rounded-full border border-line bg-paper dark:bg-[#161917] dark:border-white/10 py-2 pl-9 pr-4 text-xs sm:text-sm text-ink dark:text-white outline-none transition placeholder:text-sage-500/80 dark:placeholder:text-white/40 focus:border-jade-500 focus:bg-white dark:focus:bg-[#1D211F]"
               />
             </div>
 
@@ -538,18 +1032,18 @@ export default function Feed({
                     <div
                       role="menu"
                       aria-orientation="vertical"
-                      className="absolute right-0 top-full mt-2 w-56 rounded-2xl border border-line bg-white p-2 shadow-lg z-50 animate-in fade-in zoom-in-95 duration-150"
+                      className="absolute right-0 top-full mt-2 w-56 rounded-2xl border border-line bg-white dark:bg-[#141715] dark:border-white/10 p-2 shadow-lg z-50 animate-in fade-in zoom-in-95 duration-150"
                     >
                       <div className="px-3 py-2">
-                        <p className="truncate text-xs font-semibold text-ink">
+                        <p className="truncate text-xs font-semibold text-ink dark:text-white">
                           {user.nombre}
                         </p>
-                        <p className="truncate text-[11px] text-sage-600">
+                        <p className="truncate text-[11px] text-sage-600 dark:text-white/50">
                           {user.email}
                         </p>
                       </div>
 
-                      <div className="my-1.5 border-t border-line" />
+                      <div className="my-1.5 border-t border-line dark:border-white/10" />
 
                       <button
                         type="button"
@@ -559,9 +1053,9 @@ export default function Feed({
                           if (onOpenProfile) onOpenProfile();
                           else window.location.hash = "#perfil";
                         }}
-                        className="flex w-full items-center gap-2.5 rounded-xl px-3 py-2 text-xs font-medium text-ink transition hover:bg-paper focus-visible:outline-2 focus-visible:outline-jade-500"
+                        className="flex w-full items-center gap-2.5 rounded-xl px-3 py-2 text-xs font-medium text-ink dark:text-white/90 transition hover:bg-paper dark:hover:bg-white/10 focus-visible:outline-2 focus-visible:outline-jade-500"
                       >
-                        <User size={15} className="text-sage-500" />
+                        <User size={15} className="text-sage-500 dark:text-white/60" />
                         <span>Mi perfil</span>
                       </button>
 
@@ -573,13 +1067,13 @@ export default function Feed({
                           if (onOpenProfile) onOpenProfile();
                           else window.location.hash = "#perfil";
                         }}
-                        className="flex w-full items-center gap-2.5 rounded-xl px-3 py-2 text-xs font-medium text-ink transition hover:bg-paper focus-visible:outline-2 focus-visible:outline-jade-500"
+                        className="flex w-full items-center gap-2.5 rounded-xl px-3 py-2 text-xs font-medium text-ink dark:text-white/90 transition hover:bg-paper dark:hover:bg-white/10 focus-visible:outline-2 focus-visible:outline-jade-500"
                       >
-                        <Package size={15} className="text-sage-500" />
+                        <Package size={15} className="text-sage-500 dark:text-white/60" />
                         <span>Mis publicaciones</span>
                       </button>
 
-                      <div className="my-1.5 border-t border-line" />
+                      <div className="my-1.5 border-t border-line dark:border-white/10" />
 
                       <button
                         type="button"
@@ -588,7 +1082,7 @@ export default function Feed({
                           setIsMenuOpen(false);
                           logout();
                         }}
-                        className="flex w-full items-center gap-2.5 rounded-xl px-3 py-2 text-xs font-medium text-red-600 transition hover:bg-red-50 focus-visible:outline-2 focus-visible:outline-red-500"
+                        className="flex w-full items-center gap-2.5 rounded-xl px-3 py-2 text-xs font-medium text-red-600 dark:text-rose-400 transition hover:bg-red-50 dark:hover:bg-rose-950/30 focus-visible:outline-2 focus-visible:outline-red-500"
                       >
                         <LogOut size={15} className="text-red-500" />
                         <span>Cerrar sesión</span>
@@ -603,10 +1097,10 @@ export default function Feed({
                   onClick={toggleTheme}
                   aria-label={isDark ? "Cambiar a modo claro" : "Cambiar a modo oscuro"}
                   title={isDark ? "Cambiar a modo claro" : "Cambiar a modo oscuro"}
-                  className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full border border-line bg-white text-ink shadow-xs transition hover:bg-paper hover:text-jade-600 active:scale-95 focus-visible:outline-2 focus-visible:outline-jade-500"
+                  className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full border border-line bg-white dark:bg-[#161917] dark:border-white/15 text-ink dark:text-white shadow-xs transition hover:bg-paper dark:hover:bg-white/10 hover:text-jade-600 active:scale-95 focus-visible:outline-2 focus-visible:outline-jade-500"
                 >
                   {isDark ? (
-                    <Sun size={18} className="text-amber-500" />
+                    <Sun size={18} className="text-amber-400" />
                   ) : (
                     <Moon size={18} className="text-sage-500" />
                   )}
@@ -617,7 +1111,7 @@ export default function Feed({
                 <button
                   type="button"
                   onClick={() => onOpenAuth?.("login")}
-                  className="hidden rounded-full border border-line px-3.5 py-1.5 text-xs font-semibold text-ink transition hover:border-jade-500 hover:text-jade-600 sm:block"
+                  className="hidden rounded-full border border-line dark:border-white/15 px-3.5 py-1.5 text-xs font-semibold text-ink dark:text-white transition hover:border-jade-500 hover:text-jade-600 sm:block"
                 >
                   Iniciar sesión
                 </button>
@@ -634,10 +1128,10 @@ export default function Feed({
                   onClick={toggleTheme}
                   aria-label={isDark ? "Cambiar a modo claro" : "Cambiar a modo oscuro"}
                   title={isDark ? "Cambiar a modo claro" : "Cambiar a modo oscuro"}
-                  className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full border border-line bg-white text-ink shadow-xs transition hover:bg-paper hover:text-jade-600 active:scale-95 focus-visible:outline-2 focus-visible:outline-jade-500"
+                  className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full border border-line bg-white dark:bg-[#161917] dark:border-white/15 text-ink dark:text-white shadow-xs transition hover:bg-paper dark:hover:bg-white/10 hover:text-jade-600 active:scale-95 focus-visible:outline-2 focus-visible:outline-jade-500"
                 >
                   {isDark ? (
-                    <Sun size={16} className="text-amber-500" />
+                    <Sun size={16} className="text-amber-400" />
                   ) : (
                     <Moon size={16} className="text-sage-500" />
                   )}
@@ -648,18 +1142,19 @@ export default function Feed({
         </header>
 
         {/* Navegación por módulos (Tabs superiores móviles y desktop) */}
-        <div className="border-b border-line bg-white shadow-sm">
-          <div className="mx-auto flex max-w-7xl items-center gap-2 overflow-x-auto px-4 py-2 sm:px-8">
+        <div className="border-b border-line bg-white dark:bg-[#0C0E0D] shadow-sm dark:shadow-none">
+          <div className="mx-auto flex max-w-7xl items-center gap-2 overflow-x-auto px-4 py-2 sm:px-8 no-scrollbar scroll-smooth">
             <button
               type="button"
               onClick={() => {
                 setActiveSection("trueques");
                 setSelectedCommunityForChat(null);
+                setIsMobileFiltersOpen(false);
               }}
-              className={`inline-flex items-center gap-2 rounded-full px-4 py-1.5 text-xs font-semibold transition ${
+              className={`inline-flex shrink-0 items-center gap-2 rounded-full px-4 py-1.5 text-xs font-semibold transition ${
                 activeSection === "trueques"
                   ? "bg-jade-500 text-paper"
-                  : "text-ink-soft hover:bg-jade-50 hover:text-jade-700"
+                  : "text-ink-soft dark:text-white/70 hover:bg-jade-50 dark:hover:bg-white/10 hover:text-jade-700 dark:hover:text-white"
               }`}
             >
               <Repeat size={14} />
@@ -674,16 +1169,17 @@ export default function Feed({
               onClick={() => {
                 setActiveSection("comunidades");
                 setSelectedCommunityForChat(null);
+                setIsMobileFiltersOpen(false);
               }}
-              className={`inline-flex items-center gap-2 rounded-full px-4 py-1.5 text-xs font-semibold transition ${
+              className={`inline-flex shrink-0 items-center gap-2 rounded-full px-4 py-1.5 text-xs font-semibold transition ${
                 activeSection === "comunidades"
                   ? "bg-jade-500 text-paper"
-                  : "text-ink-soft hover:bg-jade-50 hover:text-jade-700"
+                  : "text-ink-soft dark:text-white/70 hover:bg-jade-50 dark:hover:bg-white/10 hover:text-jade-700 dark:hover:text-white"
               }`}
             >
               <Users size={14} />
               <span>Comunidades locales</span>
-              <span className="rounded-full bg-jade-100 px-1.5 py-0.2 text-[10px] text-jade-700">
+              <span className="rounded-full bg-jade-100 dark:bg-jade-950/80 px-1.5 py-0.2 text-[10px] text-jade-700 dark:text-jade-300">
                 {mockCommunities.length}
               </span>
             </button>
@@ -693,16 +1189,17 @@ export default function Feed({
               onClick={() => {
                 setActiveSection("causas");
                 setSelectedCommunityForChat(null);
+                setIsMobileFiltersOpen(false);
               }}
-              className={`inline-flex items-center gap-2 rounded-full px-4 py-1.5 text-xs font-semibold transition ${
+              className={`inline-flex shrink-0 items-center gap-2 rounded-full px-4 py-1.5 text-xs font-semibold transition ${
                 activeSection === "causas"
                   ? "bg-jade-500 text-paper"
-                  : "text-ink-soft hover:bg-jade-50 hover:text-jade-700"
+                  : "text-ink-soft dark:text-white/70 hover:bg-jade-50 dark:hover:bg-white/10 hover:text-jade-700 dark:hover:text-white"
               }`}
             >
               <HeartHandshake size={14} />
               <span>Causas sociales / ONGs</span>
-              <span className="rounded-full bg-jade-100 px-1.5 py-0.2 text-[10px] text-jade-700">
+              <span className="rounded-full bg-jade-100 dark:bg-jade-950/80 px-1.5 py-0.2 text-[10px] text-jade-700 dark:text-jade-300">
                 {mockCauses.length}
               </span>
             </button>
@@ -712,16 +1209,17 @@ export default function Feed({
               onClick={() => {
                 setActiveSection("subastas");
                 setSelectedCommunityForChat(null);
+                setIsMobileFiltersOpen(false);
               }}
-              className={`inline-flex items-center gap-2 rounded-full px-4 py-1.5 text-xs font-semibold transition ${
+              className={`inline-flex shrink-0 items-center gap-2 rounded-full px-4 py-1.5 text-xs font-semibold transition ${
                 activeSection === "subastas"
                   ? "bg-amber-500 text-ink shadow-sm"
-                  : "border border-amber-500/40 text-amber-600 hover:bg-amber-50"
+                  : "border border-amber-500/40 text-amber-600 dark:text-amber-400 hover:bg-amber-50 dark:hover:bg-amber-950/30"
               }`}
             >
               <Gavel size={14} />
               <span>Subastas</span>
-              <span className="rounded-full bg-amber-100 px-1.5 py-0.2 text-[10px] font-bold text-amber-900">
+              <span className="rounded-full bg-amber-100 dark:bg-amber-950/80 px-1.5 py-0.2 text-[10px] font-bold text-amber-900 dark:text-amber-300">
                 {auctionList.length}
               </span>
             </button>
@@ -743,426 +1241,8 @@ export default function Feed({
         {/* Sidebar izquierdo dinámico según la sección activa (se oculta cuando el chat de comunidad está abierto) */}
         {!(activeSection === "comunidades" && selectedCommunityForChat) && (
           <aside className="hidden w-64 shrink-0 lg:block">
-            <div className="sticky top-32 space-y-6 max-h-[calc(100vh-140px)] overflow-y-auto pr-1 no-scrollbar">
-            {activeSection === "comunidades" ? (
-              <>
-                {/* 1. Buscador rápido de comunidades */}
-                <div className="rounded-2xl border border-line bg-white p-4">
-                  <label htmlFor="search-comm" className="block text-xs font-bold text-ink mb-1.5">
-                    Buscar comunidades
-                  </label>
-                  <div className="relative">
-                    <Search className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-sage-400" />
-                    <input
-                      id="search-comm"
-                      type="text"
-                      value={communitySearch}
-                      onChange={(e) => setCommunitySearch(e.target.value)}
-                      placeholder="Ej. ciclistas, libros..."
-                      className="w-full h-9 pl-8 pr-2.5 rounded-xl border border-line bg-paper text-xs text-ink placeholder:text-sage-400 outline-none transition focus:border-jade-500 focus:bg-white"
-                    />
-                  </div>
-                </div>
-
-                {/* 2. Filtro por Categoría de Comunidad */}
-                <div>
-                  <p className="mb-2 text-xs font-bold uppercase tracking-wider text-sage-500">
-                    Por Temática
-                  </p>
-                  <nav className="space-y-1 max-h-60 overflow-y-auto pr-1 no-scrollbar">
-                    {communityCategories.map((cat) => {
-                      const active = communityCategory === cat;
-                      return (
-                        <button
-                          key={cat}
-                          type="button"
-                          onClick={() => setCommunityCategory(cat)}
-                          className={`flex w-full items-center justify-between rounded-xl px-3 py-2 text-xs font-medium transition ${
-                            active
-                              ? "bg-jade-500 text-paper"
-                              : "text-ink-soft hover:bg-jade-50 hover:text-jade-700"
-                          }`}
-                        >
-                          <span>{cat}</span>
-                          {active && <CheckCircle2 size={13} className="text-paper" />}
-                        </button>
-                      );
-                    })}
-                  </nav>
-                </div>
-
-                {/* 3. Filtro por Zona de Chimbote */}
-                <div className="rounded-2xl border border-line bg-white p-4">
-                  <label htmlFor="select-comm-zona" className="flex items-center gap-1.5 text-xs font-bold text-ink mb-2">
-                    <MapPin size={14} className="text-jade-500" />
-                    Zona / Distrito
-                  </label>
-                  <select
-                    id="select-comm-zona"
-                    value={communityZone}
-                    onChange={(e) => setCommunityZone(e.target.value)}
-                    className="w-full rounded-xl border border-line bg-paper px-2.5 py-2 text-xs text-ink outline-none focus:border-jade-500"
-                  >
-                    <option value="Todas">Todas las zonas ({mockCommunities.length})</option>
-                    <option value="Casco Urbano">Casco Urbano</option>
-                    <option value="Nuevo Chimbote">Nuevo Chimbote</option>
-                    <option value="Buenos Aires">Buenos Aires</option>
-                    <option value="Bellamar">Bellamar</option>
-                    <option value="La Caleta">La Caleta</option>
-                    <option value="21 de Abril">21 de Abril</option>
-                  </select>
-                </div>
-
-                {/* 4. Switch "Mis Comunidades" */}
-                <div className="rounded-2xl border border-line bg-white p-4">
-                  <div className="flex items-center justify-between">
-                    <span className="flex items-center gap-1.5 text-xs font-bold text-ink">
-                      <Users size={14} className="text-jade-500" />
-                      Mis comunidades
-                    </span>
-                    <label className="relative inline-flex cursor-pointer items-center">
-                      <input
-                        type="checkbox"
-                        checked={onlyJoinedCommunities}
-                        onChange={(e) => setOnlyJoinedCommunities(e.target.checked)}
-                        className="peer sr-only"
-                      />
-                      <div className="peer h-5 w-9 rounded-full bg-line after:absolute after:left-[2px] after:top-[2px] after:h-4 after:w-4 after:rounded-full after:bg-white after:transition-all after:content-[''] peer-checked:bg-jade-500 peer-checked:after:translate-x-full" />
-                    </label>
-                  </div>
-                  <p className="mt-1.5 text-[11px] leading-tight text-sage-500">
-                    Mostrar solo las comunidades a las que te has unido ({joinedCommunityIds.length}).
-                  </p>
-                </div>
-              </>
-            ) : activeSection === "causas" ? (
-              <>
-                {/* 1. Buscador rápido de causas y objetos */}
-                <div className="rounded-2xl border border-line bg-white p-4">
-                  <label htmlFor="search-causes" className="block text-xs font-bold text-ink mb-1.5">
-                    Buscar causas u objetos
-                  </label>
-                  <div className="relative">
-                    <Search className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-sage-400" />
-                    <input
-                      id="search-causes"
-                      type="text"
-                      value={causeSearch}
-                      onChange={(e) => setCauseSearch(e.target.value)}
-                      placeholder="Ej. mantas, ollas, libros..."
-                      className="w-full h-9 pl-8 pr-2.5 rounded-xl border border-line bg-paper text-xs text-ink placeholder:text-sage-400 outline-none transition focus:border-jade-500 focus:bg-white"
-                    />
-                  </div>
-                </div>
-
-                {/* 2. Filtro por Temática Solidaria */}
-                <div>
-                  <p className="mb-2 text-xs font-bold uppercase tracking-wider text-sage-500">
-                    Temática Solidaria
-                  </p>
-                  <nav className="space-y-1">
-                    {causeCategories.map((cat) => {
-                      const active = causeCategory === cat;
-                      return (
-                        <button
-                          key={cat}
-                          type="button"
-                          onClick={() => setCauseCategory(cat)}
-                          className={`flex w-full items-center justify-between rounded-xl px-3 py-2 text-xs font-medium transition ${
-                            active
-                              ? "bg-jade-500 text-paper font-semibold"
-                              : "text-ink-soft hover:bg-jade-50 hover:text-jade-700"
-                          }`}
-                        >
-                          <span className="truncate">{cat}</span>
-                          {active && <CheckCircle2 size={13} className="shrink-0" />}
-                        </button>
-                      );
-                    })}
-                  </nav>
-                </div>
-
-                {/* 3. Filtro por Zona */}
-                <div className="rounded-2xl border border-line bg-white p-4">
-                  <label htmlFor="cause-zone-select" className="flex items-center gap-1.5 text-xs font-bold text-ink mb-2">
-                    <MapPin size={14} className="text-jade-500" />
-                    Zona / Distrito
-                  </label>
-                  <select
-                    id="cause-zone-select"
-                    value={causeZone}
-                    onChange={(e) => setCauseZone(e.target.value)}
-                    className="w-full rounded-xl border border-line bg-paper px-2.5 py-2 text-xs text-ink outline-none focus:border-jade-500"
-                  >
-                    <option value="Todas">Todas las zonas ({mockCauses.length})</option>
-                    <option value="Nuevo Chimbote">Nuevo Chimbote</option>
-                    <option value="Casco Urbano">Casco Urbano</option>
-                    <option value="Bellamar">Bellamar</option>
-                    <option value="La Caleta">La Caleta</option>
-                    <option value="27 de Octubre">27 de Octubre</option>
-                    <option value="Miraflores">Miraflores</option>
-                    <option value="San Pedro">San Pedro</option>
-                  </select>
-                </div>
-
-                {/* 4. Switch Solo Urgentes */}
-                <div className="rounded-2xl border border-line bg-white p-4">
-                  <div className="flex items-center justify-between">
-                    <span className="flex items-center gap-1.5 text-xs font-bold text-ink">
-                      <Clock size={14} className="text-rose-500" />
-                      Solo causas urgentes
-                    </span>
-                    <label className="relative inline-flex cursor-pointer items-center">
-                      <input
-                        type="checkbox"
-                        checked={onlyUrgentCauses}
-                        onChange={(e) => setOnlyUrgentCauses(e.target.checked)}
-                        className="peer sr-only"
-                      />
-                      <div className="peer h-5 w-9 rounded-full bg-line after:absolute after:left-[2px] after:top-[2px] after:h-4 after:w-4 after:rounded-full after:bg-white after:transition-all after:content-[''] peer-checked:bg-rose-500 peer-checked:after:translate-x-full" />
-                    </label>
-                  </div>
-                  <p className="mt-1.5 text-[11px] leading-tight text-sage-500">
-                    Muestra causas con necesidades prioritarias inmediatas.
-                  </p>
-                </div>
-
-                {/* 5. Tarjeta de Confianza y Cero Dinero */}
-                <div className="rounded-2xl border border-jade-200/80 bg-jade-50/60 p-4 text-xs">
-                  <div className="flex items-center gap-2 text-jade-800 font-bold mb-1">
-                    <ShieldCheck size={16} className="text-jade-600" />
-                    <span>Garantía Truekly</span>
-                  </div>
-                  <p className="text-[11px] leading-relaxed text-jade-900/80">
-                    En Truekly las causas sociales no reciben dinero en efectivo ni donaciones monetarias. Toda colaboración es exclusivamente en bienes útiles entregados en Puntos Seguros autorizados.
-                  </p>
-                </div>
-              </>
-            ) : activeSection === "subastas" ? (
-              <>
-                {/* 1. Buscador rápido de subastas */}
-                <div className="rounded-2xl border border-line bg-white p-4">
-                  <label htmlFor="search-auctions" className="block text-xs font-bold text-ink mb-1.5">
-                    Buscar en subastas
-                  </label>
-                  <div className="relative">
-                    <Search className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-sage-400" />
-                    <input
-                      id="search-auctions"
-                      type="text"
-                      value={auctionSearch}
-                      onChange={(e) => setAuctionSearch(e.target.value)}
-                      placeholder="Ej. cámara, telescopio, dron..."
-                      className="w-full h-9 pl-8 pr-2.5 rounded-xl border border-line bg-paper text-xs text-ink placeholder:text-sage-400 outline-none transition focus:border-amber-500 focus:bg-white"
-                    />
-                  </div>
-                </div>
-
-                {/* 2. Categorías de subasta */}
-                <div>
-                  <p className="mb-2 text-xs font-bold uppercase tracking-wider text-sage-500">
-                    Especialidad / Rubro
-                  </p>
-                  <nav className="space-y-1">
-                    {auctionCategories.map((cat) => {
-                      const active = auctionCategory === cat;
-                      return (
-                        <button
-                          key={cat}
-                          type="button"
-                          onClick={() => setAuctionCategory(cat)}
-                          className={`flex w-full items-center justify-between rounded-xl px-3 py-2 text-xs font-medium transition cursor-pointer ${
-                            active
-                              ? "bg-amber-500 text-ink font-bold shadow-xs"
-                              : "text-ink-soft hover:bg-amber-50 hover:text-amber-800"
-                          }`}
-                        >
-                          <span className="truncate">{cat}</span>
-                          {active && <CheckCircle2 size={13} className="shrink-0 text-ink" />}
-                        </button>
-                      );
-                    })}
-                  </nav>
-                </div>
-
-                {/* 3. Filtro por Zona */}
-                <div className="rounded-2xl border border-line bg-white p-4">
-                  <label htmlFor="auction-zone-select" className="flex items-center gap-1.5 text-xs font-bold text-ink mb-2">
-                    <MapPin size={14} className="text-amber-600" />
-                    Zona / Distrito
-                  </label>
-                  <select
-                    id="auction-zone-select"
-                    value={auctionZone}
-                    onChange={(e) => setAuctionZone(e.target.value)}
-                    className="w-full rounded-xl border border-line bg-paper px-2.5 py-2 text-xs text-ink outline-none focus:border-amber-500"
-                  >
-                    <option value="Todas">Todas las zonas ({auctionList.length})</option>
-                    <option value="Nuevo Chimbote">Nuevo Chimbote</option>
-                    <option value="Casco Urbano">Casco Urbano</option>
-                    <option value="Buenos Aires">Buenos Aires</option>
-                    <option value="Bellamar">Bellamar</option>
-                    <option value="La Caleta">La Caleta</option>
-                  </select>
-                </div>
-
-                {/* 4. Switch Solo Benéficas */}
-                <div className="rounded-2xl border border-line bg-white p-4">
-                  <div className="flex items-center justify-between">
-                    <span className="flex items-center gap-1.5 text-xs font-bold text-ink">
-                      <Heart size={14} className="text-jade-600 fill-jade-600" />
-                      Solo con fin social
-                    </span>
-                    <label className="relative inline-flex cursor-pointer items-center">
-                      <input
-                        type="checkbox"
-                        checked={onlyBeneficAuctions}
-                        onChange={(e) => setOnlyBeneficAuctions(e.target.checked)}
-                        className="peer sr-only"
-                      />
-                      <div className="peer h-5 w-9 rounded-full bg-line after:absolute after:left-[2px] after:top-[2px] after:h-4 after:w-4 after:rounded-full after:bg-white after:transition-all after:content-[''] peer-checked:bg-jade-500 peer-checked:after:translate-x-full" />
-                    </label>
-                  </div>
-                  <p className="mt-1.5 text-[11px] leading-tight text-sage-500">
-                    Artículos cuya puja apoya a comedores, albergues y bibliotecas de Chimbote.
-                  </p>
-                </div>
-
-                {/* 5. Tarjeta de Transparencia de Moneda Ficticia */}
-                <div className="rounded-2xl border border-amber-300 bg-amber-50/70 p-4 text-xs">
-                  <div className="flex items-center gap-2 text-amber-900 font-bold mb-1">
-                    <Gavel size={15} className="text-amber-700" />
-                    <span>Módulo de Pujas Didáctico</span>
-                  </div>
-                  <p className="text-[11px] leading-relaxed text-amber-900/80">
-                    Los montos en Soles (S/) son simbólicos para simular pujas en artículos escasos o benéficos. No se debitará dinero de tus cuentas bancarias ni se cobran comisiones.
-                  </p>
-                </div>
-              </>
-            ) : (
-              <>
-                {/* Categorías de productos */}
-                <div>
-                  <p className="mb-2 text-xs font-bold uppercase tracking-wider text-sage-500">
-                    Categorías
-                  </p>
-                  <nav className="space-y-1">
-                    {categoryList.map((cat) => {
-                      const Icon = categoryIcons[cat];
-                      const active = activeCategory === cat;
-                      return (
-                        <button
-                          key={cat}
-                          type="button"
-                          onClick={() => {
-                            setActiveCategory(cat);
-                            setActiveSection("trueques");
-                          }}
-                          className={`flex w-full items-center justify-between rounded-xl px-3 py-2 text-xs font-medium transition ${
-                            active
-                              ? "bg-jade-500 text-paper"
-                              : "text-ink-soft hover:bg-jade-50 hover:text-jade-700"
-                          }`}
-                        >
-                          <span className="flex items-center gap-2.5">
-                            <Icon size={15} />
-                            {cat}
-                          </span>
-                        </button>
-                      );
-                    })}
-                  </nav>
-                </div>
-
-                {/* Toggle Cerca de Mí (Manual por zona, sin GPS) */}
-                <div className="rounded-2xl border border-line bg-white p-4">
-                  <div className="flex items-center justify-between">
-                    <span className="flex items-center gap-1.5 text-xs font-bold text-ink">
-                      <MapPin size={14} className="text-jade-500" />
-                      Cerca de mí
-                    </span>
-                    <label className="relative inline-flex cursor-pointer items-center">
-                      <input
-                        type="checkbox"
-                        checked={nearMeEnabled}
-                        onChange={(e) => setNearMeEnabled(e.target.checked)}
-                        className="peer sr-only"
-                      />
-                      <div className="peer h-5 w-9 rounded-full bg-line after:absolute after:left-[2px] after:top-[2px] after:h-4 after:w-4 after:rounded-full after:bg-white after:transition-all after:content-[''] peer-checked:bg-jade-500 peer-checked:after:translate-x-full" />
-                    </label>
-                  </div>
-
-                  <p className="mt-1.5 text-[11px] leading-tight text-sage-500">
-                    Filtro manual por zona (cero GPS por privacidad).
-                  </p>
-
-                  {nearMeEnabled && (
-                    <div className="mt-3 border-t border-line pt-3">
-                      <label htmlFor="select-zona" className="block text-[11px] font-semibold text-ink">
-                        Selecciona tu sector:
-                      </label>
-                      <select
-                        id="select-zona"
-                        value={selectedZone}
-                        onChange={(e) => setSelectedZone(e.target.value as Zone)}
-                        className="mt-1 w-full rounded-lg border border-line bg-paper px-2.5 py-1.5 text-xs text-ink outline-none focus:border-jade-500"
-                      >
-                        {CHIMBOTE_ZONES.map((z) => (
-                          <option key={z} value={z}>
-                            {z}
-                          </option>
-                        ))}
-                      </select>
-                    </div>
-                  )}
-                </div>
-
-                {/* Filtro por Estado del Producto */}
-                <div className="rounded-2xl border border-line bg-white p-4">
-                  <p className="flex items-center gap-1.5 text-xs font-bold text-ink">
-                    <SlidersHorizontal size={13} className="text-jade-500" />
-                    Estado del producto
-                  </p>
-                  <div className="mt-2.5 space-y-1">
-                    {conditionList.map((cond) => {
-                      const active = activeCondition === cond;
-                      return (
-                        <button
-                          key={cond}
-                          type="button"
-                          onClick={() => {
-                            setActiveCondition(cond);
-                            setActiveSection("trueques");
-                          }}
-                          className={`flex w-full items-center justify-between rounded-lg px-2.5 py-1.5 text-xs transition ${
-                            active
-                              ? "bg-jade-50 font-semibold text-jade-700"
-                              : "text-ink-soft hover:bg-paper"
-                          }`}
-                        >
-                          <span>{cond}</span>
-                          {active && <CheckCircle2 size={13} className="text-jade-500" />}
-                        </button>
-                      );
-                    })}
-                  </div>
-                </div>
-
-                {/* Respaldo Comunitario */}
-                <div className="rounded-2xl border border-line bg-jade-50/50 p-4 text-xs text-jade-700">
-                  <div className="flex items-center gap-2 font-bold text-jade-700">
-                    <ShieldCheck size={16} />
-                    <span>Trueque 100% libre</span>
-                  </div>
-                  <p className="mt-1.5 leading-relaxed text-ink-soft text-[11px]">
-                    En Truekly negocias sin dinero ni tasas fijas. Acuerda con la otra persona
-                    y elijan un punto seguro de su zona.
-                  </p>
-                </div>
-              </>
-            )}
-          </div>
-        </aside>
+            {renderSidebarFilters(false)}
+          </aside>
         )}
 
         {/* Área central conmutada según la sección seleccionada */}
@@ -1186,31 +1266,48 @@ export default function Feed({
                   </p>
                 </div>
 
-                {(activeCategory !== "Todos" ||
-                  activeCondition !== "Todas" ||
-                  nearMeEnabled ||
-                  query) && (
+                <div className="flex items-center gap-2">
                   <button
                     type="button"
-                    onClick={() => {
-                      setActiveCategory("Todos");
-                      setActiveCondition("Todas");
-                      setNearMeEnabled(false);
-                      setQuery("");
-                    }}
-                    className="text-xs font-semibold text-jade-600 hover:text-jade-700"
+                    onClick={() => setIsMobileFiltersOpen(true)}
+                    className="lg:hidden inline-flex items-center gap-1.5 rounded-full border border-line dark:border-white/15 bg-white dark:bg-[#121413] px-3.5 py-1.5 text-xs font-semibold text-ink dark:text-white shadow-2xs hover:bg-paper dark:hover:bg-white/10 active:scale-95 transition"
+                    aria-label="Abrir filtros de búsqueda"
                   >
-                    Restablecer filtros
+                    <SlidersHorizontal size={14} className="text-jade-500" />
+                    <span>Filtros</span>
+                    {activeFilterCount > 0 && (
+                      <span className="flex h-4 min-w-4 items-center justify-center rounded-full bg-jade-500 px-1 text-[10px] font-bold text-white">
+                        {activeFilterCount}
+                      </span>
+                    )}
                   </button>
-                )}
+
+                  {(activeCategory !== "Todos" ||
+                    activeCondition !== "Todas" ||
+                    nearMeEnabled ||
+                    query) && (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setActiveCategory("Todos");
+                        setActiveCondition("Todas");
+                        setNearMeEnabled(false);
+                        setQuery("");
+                      }}
+                      className="text-xs font-semibold text-jade-600 dark:text-jade-400 hover:text-jade-700"
+                    >
+                      Restablecer filtros
+                    </button>
+                  )}
+                </div>
               </div>
 
               {filteredProducts.length === 0 ? (
-                <div className="rounded-2xl border border-dashed border-line bg-white py-16 text-center">
-                  <p className="font-display text-base font-semibold text-ink">
+                <div className="rounded-2xl border border-dashed border-line bg-white dark:bg-[#121413] dark:border-white/10 py-16 text-center">
+                  <p className="font-display text-base font-semibold text-ink dark:text-white">
                     No se encontraron artículos con estos criterios
                   </p>
-                  <p className="mx-auto mt-1 max-w-sm text-xs text-sage-500">
+                  <p className="mx-auto mt-1 max-w-sm text-xs text-sage-500 dark:text-white/60">
                     Prueba cambiando de categoría, desactivando el filtro de zona o
                     buscando términos más amplios.
                   </p>
@@ -1254,8 +1351,23 @@ export default function Feed({
                 </div>
 
                 {/* Contador y reseteador */}
-                <div className="flex items-center gap-3">
-                  <span className="text-xs text-sage-600 font-medium">
+                <div className="flex items-center gap-2.5">
+                  <button
+                    type="button"
+                    onClick={() => setIsMobileFiltersOpen(true)}
+                    className="lg:hidden inline-flex items-center gap-1.5 rounded-full border border-line dark:border-white/15 bg-white dark:bg-[#121413] px-3.5 py-1.5 text-xs font-semibold text-ink dark:text-white shadow-2xs hover:bg-paper dark:hover:bg-white/10 active:scale-95 transition"
+                    aria-label="Abrir filtros de comunidades"
+                  >
+                    <SlidersHorizontal size={14} className="text-jade-500" />
+                    <span>Filtros</span>
+                    {activeFilterCount > 0 && (
+                      <span className="flex h-4 min-w-4 items-center justify-center rounded-full bg-jade-500 px-1 text-[10px] font-bold text-white">
+                        {activeFilterCount}
+                      </span>
+                    )}
+                  </button>
+
+                  <span className="text-xs text-sage-600 dark:text-sage-400 font-medium hidden sm:inline">
                     {filteredCommunities.length} de {mockCommunities.length} comunidades
                   </span>
                   {(communitySearch || communityCategory !== "Todas" || communityZone !== "Todas" || onlyJoinedCommunities) && (
@@ -1267,7 +1379,7 @@ export default function Feed({
                         setCommunityZone("Todas");
                         setOnlyJoinedCommunities(false);
                       }}
-                      className="text-xs font-semibold text-jade-600 hover:underline"
+                      className="text-xs font-semibold text-jade-600 dark:text-jade-400 hover:underline"
                     >
                       Limpiar filtros
                     </button>
@@ -1276,12 +1388,12 @@ export default function Feed({
               </div>
 
               {filteredCommunities.length === 0 ? (
-                <div className="rounded-2xl border border-line bg-white p-12 text-center">
-                  <Users className="mx-auto h-10 w-10 text-sage-400" />
-                  <p className="mt-3 font-display text-base font-semibold text-ink">
+                <div className="rounded-2xl border border-line bg-white dark:bg-[#121413] dark:border-white/10 p-12 text-center">
+                  <Users className="mx-auto h-10 w-10 text-sage-400 dark:text-white/40" />
+                  <p className="mt-3 font-display text-base font-semibold text-ink dark:text-white">
                     No se encontraron comunidades con esos criterios
                   </p>
-                  <p className="mt-1 text-xs text-sage-500">
+                  <p className="mt-1 text-xs text-sage-500 dark:text-white/60">
                     Prueba cambiando la zona, la temática o borrando los términos de búsqueda.
                   </p>
                   <button
@@ -1337,8 +1449,23 @@ export default function Feed({
                 </div>
 
                 {/* Contador y Limpiador de filtros */}
-                <div className="flex items-center gap-3">
-                  <span className="text-xs text-sage-600 font-medium">
+                <div className="flex items-center gap-2.5">
+                  <button
+                    type="button"
+                    onClick={() => setIsMobileFiltersOpen(true)}
+                    className="lg:hidden inline-flex items-center gap-1.5 rounded-full border border-line dark:border-white/15 bg-white dark:bg-[#121413] px-3.5 py-1.5 text-xs font-semibold text-ink dark:text-white shadow-2xs hover:bg-paper dark:hover:bg-white/10 active:scale-95 transition"
+                    aria-label="Abrir filtros de causas"
+                  >
+                    <SlidersHorizontal size={14} className="text-jade-500" />
+                    <span>Filtros</span>
+                    {activeFilterCount > 0 && (
+                      <span className="flex h-4 min-w-4 items-center justify-center rounded-full bg-jade-500 px-1 text-[10px] font-bold text-white">
+                        {activeFilterCount}
+                      </span>
+                    )}
+                  </button>
+
+                  <span className="text-xs text-sage-600 dark:text-sage-400 font-medium hidden sm:inline">
                     {filteredCauses.length} de {mockCauses.length} causas activas
                   </span>
                   {(causeSearch || causeCategory !== "Todas" || causeZone !== "Todas" || onlyUrgentCauses) && (
@@ -1350,7 +1477,7 @@ export default function Feed({
                         setCauseZone("Todas");
                         setOnlyUrgentCauses(false);
                       }}
-                      className="text-xs font-semibold text-jade-600 hover:underline cursor-pointer"
+                      className="text-xs font-semibold text-jade-600 dark:text-jade-400 hover:underline cursor-pointer"
                     >
                       Limpiar filtros
                     </button>
@@ -1360,11 +1487,11 @@ export default function Feed({
 
               {/* Listado de tarjetas de causas */}
               {filteredCauses.length === 0 ? (
-                <div className="rounded-2xl border border-line bg-white p-12 text-center">
-                  <p className="font-display text-base font-bold text-ink">
+                <div className="rounded-2xl border border-line bg-white dark:bg-[#121413] dark:border-white/10 p-12 text-center">
+                  <p className="font-display text-base font-bold text-ink dark:text-white">
                     No se encontraron causas con los filtros seleccionados
                   </p>
-                  <p className="mt-1 text-xs text-sage-500">
+                  <p className="mt-1 text-xs text-sage-500 dark:text-white/60">
                     Prueba cambiando la zona, la temática o borrando los términos de búsqueda.
                   </p>
                   <button
@@ -1400,20 +1527,35 @@ export default function Feed({
             <div>
               <div className="mb-6 border-b border-line pb-4 flex flex-wrap items-end justify-between gap-4">
                 <div>
-                  <span className="text-xs font-bold uppercase tracking-wider text-amber-700">
+                  <span className="text-xs font-bold uppercase tracking-wider text-amber-700 dark:text-amber-400">
                     Artículos Singulares & Fin Social
                   </span>
-                  <h1 className="font-display text-2xl font-semibold text-ink">
+                  <h1 className="font-display text-2xl font-semibold text-ink dark:text-white">
                     Subastas Benéficas Simuladas en {APP_CONFIG.city}
                   </h1>
-                  <p className="mt-1 text-xs text-sage-500 max-w-2xl leading-relaxed">
+                  <p className="mt-1 text-xs text-sage-500 dark:text-white/60 max-w-2xl leading-relaxed">
                     Pujas didácticas con moneda simulada para artículos de colección, fotografía, ciencia e instrumentos. Los intercambios benéficos apoyan a comedores y albergues locales.
                   </p>
                 </div>
 
                 {/* Contador y Limpiador de filtros */}
-                <div className="flex items-center gap-3">
-                  <span className="text-xs text-sage-600 font-medium">
+                <div className="flex items-center gap-2.5">
+                  <button
+                    type="button"
+                    onClick={() => setIsMobileFiltersOpen(true)}
+                    className="lg:hidden inline-flex items-center gap-1.5 rounded-full border border-line dark:border-white/15 bg-white dark:bg-[#121413] px-3.5 py-1.5 text-xs font-semibold text-ink dark:text-white shadow-2xs hover:bg-paper dark:hover:bg-white/10 active:scale-95 transition"
+                    aria-label="Abrir filtros de subastas"
+                  >
+                    <SlidersHorizontal size={14} className="text-amber-500" />
+                    <span>Filtros</span>
+                    {activeFilterCount > 0 && (
+                      <span className="flex h-4 min-w-4 items-center justify-center rounded-full bg-amber-500 px-1 text-[10px] font-bold text-white">
+                        {activeFilterCount}
+                      </span>
+                    )}
+                  </button>
+
+                  <span className="text-xs text-sage-600 dark:text-white/60 font-medium hidden sm:inline">
                     {filteredAuctions.length} de {auctionList.length} subastas activas
                   </span>
                   {(auctionSearch || auctionCategory !== "Todas" || auctionZone !== "Todas" || onlyBeneficAuctions) && (
@@ -1425,7 +1567,7 @@ export default function Feed({
                         setAuctionZone("Todas");
                         setOnlyBeneficAuctions(false);
                       }}
-                      className="text-xs font-semibold text-amber-700 hover:underline cursor-pointer"
+                      className="text-xs font-semibold text-amber-700 dark:text-amber-400 hover:underline cursor-pointer"
                     >
                       Limpiar filtros
                     </button>
@@ -1434,16 +1576,16 @@ export default function Feed({
               </div>
 
               {/* Advertencia de transparencia y política de moneda ficticia */}
-              <div className="mb-6 rounded-2xl border border-amber-300 bg-amber-50/70 p-4 sm:p-5">
+              <div className="mb-6 rounded-2xl border border-amber-300 dark:border-amber-500/30 bg-amber-50/70 dark:bg-amber-950/30 p-4 sm:p-5">
                 <div className="flex items-start gap-3">
                   <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-xl bg-amber-500 text-ink shadow-xs">
                     <AlertCircle size={18} />
                   </div>
                   <div>
-                    <h2 className="font-display text-sm sm:text-base font-bold text-ink">
+                    <h2 className="font-display text-sm sm:text-base font-bold text-ink dark:text-white">
                       Aviso de Transparencia: Moneda Simulada (Sin Cobros Reales)
                     </h2>
-                    <p className="mt-1 text-xs leading-relaxed text-ink-soft">
+                    <p className="mt-1 text-xs leading-relaxed text-ink-soft dark:text-white/70">
                       A diferencia del feed habitual (trueque directo sin dinero), en este módulo experimental los montos indicados en Soles (S/) son <strong>SIMULADOS (dinero ficticio para pujas didácticas)</strong>. Permite acceder a objetos de alta demanda y canalizar aportes solidarios hacia ONGs registradas en Chimbote.
                     </p>
                   </div>
@@ -1452,11 +1594,11 @@ export default function Feed({
 
               {/* Listado de tarjetas de subastas */}
               {filteredAuctions.length === 0 ? (
-                <div className="rounded-2xl border border-line bg-white p-12 text-center">
-                  <p className="font-display text-base font-bold text-ink">
+                <div className="rounded-2xl border border-line bg-white dark:bg-[#121413] dark:border-white/10 p-12 text-center">
+                  <p className="font-display text-base font-bold text-ink dark:text-white">
                     No se encontraron subastas con los filtros seleccionados
                   </p>
-                  <p className="mt-1 text-xs text-sage-500">
+                  <p className="mt-1 text-xs text-sage-500 dark:text-white/60">
                     Prueba cambiando el rubro, la zona o borrando los términos de búsqueda.
                   </p>
                   <button
@@ -1491,21 +1633,21 @@ export default function Feed({
 
         {/* Modal / Overlay centrado para invitar a iniciar sesión en Comunidades */}
         {activeSection === "comunidades" && !user && (
-          <div className="absolute inset-0 z-30 flex items-start justify-center pt-16 sm:pt-24 px-4 bg-white/20 backdrop-blur-xs">
-            <div className="sticky top-44 w-full max-w-md rounded-3xl border border-line bg-white/95 p-7 sm:p-8 text-center shadow-2xl backdrop-blur-xl animate-in fade-in zoom-in-95 duration-200">
-              <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-2xl bg-jade-50 text-jade-600 border border-jade-100 shadow-xs mb-4">
+          <div className="absolute inset-0 z-30 flex items-start justify-center pt-16 sm:pt-24 px-4 bg-black/50 backdrop-blur-xs">
+            <div className="sticky top-44 w-full max-w-md rounded-3xl border border-line bg-white/95 dark:bg-[#121413]/95 dark:border-white/10 p-7 sm:p-8 text-center shadow-2xl backdrop-blur-xl animate-in fade-in zoom-in-95 duration-200">
+              <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-2xl bg-jade-50 dark:bg-jade-950/60 text-jade-600 dark:text-jade-400 border border-jade-100 dark:border-jade-500/30 shadow-xs mb-4">
                 <Users size={28} />
               </div>
 
-              <span className="inline-block rounded-full bg-jade-50 px-3 py-1 text-[11px] font-bold uppercase tracking-wider text-jade-700 mb-2">
+              <span className="inline-block rounded-full bg-jade-50 dark:bg-jade-950/60 px-3 py-1 text-[11px] font-bold uppercase tracking-wider text-jade-700 dark:text-jade-300 mb-2">
                 Comunidades Locales de Chimbote
               </span>
 
-              <h2 className="font-display text-xl sm:text-2xl font-bold text-ink leading-snug">
+              <h2 className="font-display text-xl sm:text-2xl font-bold text-ink dark:text-white leading-snug">
                 Inicia sesión para acceder a las comunidades
               </h2>
 
-              <p className="mt-2.5 text-xs sm:text-sm text-sage-600 leading-relaxed">
+              <p className="mt-2.5 text-xs sm:text-sm text-sage-600 dark:text-white/70 leading-relaxed">
                 Únete a grupos por temática en Chimbote, chatea en tiempo real con vecinos verificados y coordina trueques directos sin dinero.
               </p>
 
@@ -1520,13 +1662,13 @@ export default function Feed({
                 <button
                   type="button"
                   onClick={() => onOpenAuth?.("register")}
-                  className="w-full sm:w-auto flex-1 rounded-full border border-line bg-white px-5 py-2.5 text-xs sm:text-sm font-semibold text-ink hover:bg-paper hover:border-jade-500 transition focus-visible:outline-2 focus-visible:outline-jade-500 cursor-pointer"
+                  className="w-full sm:w-auto flex-1 rounded-full border border-line bg-white dark:bg-[#181C1A] dark:border-white/10 px-5 py-2.5 text-xs sm:text-sm font-semibold text-ink dark:text-white hover:bg-paper dark:hover:bg-white/10 hover:border-jade-500 transition focus-visible:outline-2 focus-visible:outline-jade-500 cursor-pointer"
                 >
                   Registrarse gratis
                 </button>
               </div>
 
-              <p className="mt-4 text-[11px] text-sage-400">
+              <p className="mt-4 text-[11px] text-sage-400 dark:text-white/40">
                 Solo toma 1 minuto y es 100% gratuito.
               </p>
             </div>
@@ -1575,6 +1717,62 @@ export default function Feed({
         onRequireAuth={onOpenAuth}
         onBidSuccess={handleBidSuccess}
       />
+
+      {/* Drawer Móvil de Filtros Deslizable */}
+      {isMobileFiltersOpen && (
+        <div
+          className="fixed inset-0 z-50 flex justify-end bg-black/60 backdrop-blur-xs lg:hidden animate-in fade-in duration-200"
+          onClick={(e) => {
+            if (e.target === e.currentTarget) setIsMobileFiltersOpen(false);
+          }}
+          role="dialog"
+          aria-modal="true"
+          aria-label="Filtros de búsqueda"
+        >
+          <div className="relative flex h-full w-full max-w-xs sm:max-w-sm flex-col border-l border-line dark:border-white/10 bg-white dark:bg-[#121413] shadow-2xl animate-in slide-in-from-right duration-200">
+            {/* Header del Drawer */}
+            <div className="flex h-14 shrink-0 items-center justify-between border-b border-line dark:border-white/10 px-5 bg-paper/60 dark:bg-[#181C1A]/60">
+              <div className="flex items-center gap-2">
+                <SlidersHorizontal size={16} className="text-jade-500" />
+                <h3 className="font-display text-sm font-bold text-ink dark:text-white">
+                  Filtros de {activeSection === "comunidades" ? "Comunidades" : activeSection === "causas" ? "Causas" : activeSection === "subastas" ? "Subastas" : "Trueque"}
+                </h3>
+              </div>
+              <button
+                type="button"
+                onClick={() => setIsMobileFiltersOpen(false)}
+                className="flex h-8 w-8 items-center justify-center rounded-full text-sage-500 dark:text-white/60 hover:bg-paper dark:hover:bg-white/10 hover:text-ink dark:hover:text-white transition"
+                aria-label="Cerrar filtros"
+              >
+                <X size={18} />
+              </button>
+            </div>
+
+            {/* Contenido scroleable */}
+            <div className="flex-1 overflow-y-auto p-4 no-scrollbar">
+              {renderSidebarFilters(true)}
+            </div>
+
+            {/* Footer con acciones */}
+            <div className="shrink-0 border-t border-line dark:border-white/10 p-4 bg-paper/40 dark:bg-[#181C1A]/40 flex items-center gap-2.5">
+              <button
+                type="button"
+                onClick={handleResetActiveFilters}
+                className="flex-1 rounded-xl border border-line dark:border-white/15 bg-white dark:bg-[#181C1A] py-2.5 text-xs font-semibold text-ink dark:text-white hover:bg-paper dark:hover:bg-white/10 transition cursor-pointer"
+              >
+                Limpiar
+              </button>
+              <button
+                type="button"
+                onClick={() => setIsMobileFiltersOpen(false)}
+                className="flex-1 rounded-xl bg-jade-500 py-2.5 text-xs font-semibold text-paper hover:bg-jade-600 transition shadow-xs cursor-pointer"
+              >
+                Ver resultados
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

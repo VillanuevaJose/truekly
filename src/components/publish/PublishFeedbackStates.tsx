@@ -8,12 +8,12 @@ interface AuthPromptProps {
 export function PublishAuthPrompt({ onLogin, onRegister }: AuthPromptProps) {
   return (
     <div className="py-6 text-center space-y-4">
-      <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-amber-50 text-amber-700 border border-amber-200">
+      <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-amber-50 dark:bg-amber-500/10 text-amber-700 dark:text-amber-400 border border-amber-200 dark:border-amber-500/20">
         <ShieldAlert className="h-6 w-6" />
       </div>
       <div className="max-w-sm mx-auto space-y-1">
         <h3 className="text-sm font-bold text-ink">Inicia sesión para publicar</h3>
-        <p className="text-xs text-sage-500">
+        <p className="text-xs text-sage-500 dark:text-sage-400">
           Para proteger la confianza de los intercambios, necesitas una cuenta verificada.
         </p>
       </div>
@@ -21,7 +21,7 @@ export function PublishAuthPrompt({ onLogin, onRegister }: AuthPromptProps) {
         <button
           type="button"
           onClick={onLogin}
-          className="rounded-xl border border-line bg-white px-4 py-2 text-xs font-semibold text-ink hover:bg-paper"
+          className="rounded-xl border border-line dark:border-white/15 bg-white dark:bg-[#181C1A] px-4 py-2 text-xs font-semibold text-ink dark:text-white hover:bg-paper dark:hover:bg-[#222824]"
         >
           Iniciar sesión
         </button>
@@ -44,12 +44,12 @@ interface SuccessProps {
 export function PublishSuccessView({ onExplore }: SuccessProps) {
   return (
     <div className="py-8 text-center space-y-4 animate-in zoom-in-95 duration-200">
-      <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-full bg-jade-50 text-jade-700 border border-jade-200">
+      <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-full bg-jade-50 dark:bg-jade-500/10 text-jade-700 dark:text-jade-400 border border-jade-200 dark:border-jade-500/20">
         <CheckCircle2 className="h-7 w-7" />
       </div>
       <div className="space-y-1">
         <h3 className="text-base font-bold text-ink">¡Tu objeto ya está en el feed!</h3>
-        <p className="text-xs text-sage-500 max-w-sm mx-auto">
+        <p className="text-xs text-sage-500 dark:text-sage-400 max-w-sm mx-auto">
           Otros usuarios podrán ver tus fotos y enviarte propuestas directas por el chat seguro.
         </p>
       </div>

@@ -24,9 +24,9 @@ export function AuctionCard({ auction, onBid, onViewDetails }: AuctionCardProps)
   const isEndingSoon = auction.hoursRemaining <= 24;
 
   return (
-    <article className="group flex flex-col justify-between rounded-3xl border border-line bg-white overflow-hidden transition-all duration-200 hover:-translate-y-0.5 hover:border-amber-400 hover:shadow-md">
+    <article className="group flex flex-col justify-between rounded-3xl border border-line bg-white dark:bg-[#121413] dark:border-white/10 overflow-hidden transition-all duration-200 hover:-translate-y-0.5 hover:border-amber-400 hover:shadow-md">
       {/* 1. Imagen de portada con badges superpuestos */}
-      <div className="relative aspect-[16/10] w-full bg-paper overflow-hidden">
+      <div className="relative aspect-[16/10] w-full bg-paper dark:bg-[#181C1A] overflow-hidden">
         {auction.image && !imgError ? (
           <img
             src={auction.image}
@@ -36,7 +36,7 @@ export function AuctionCard({ auction, onBid, onViewDetails }: AuctionCardProps)
             className="h-full w-full object-cover transition-transform duration-300 group-hover:scale-103"
           />
         ) : (
-          <div className="flex h-full w-full items-center justify-center bg-amber-50 text-amber-700 font-display font-bold text-2xl">
+          <div className="flex h-full w-full items-center justify-center bg-amber-50 dark:bg-amber-950/80 text-amber-700 dark:text-amber-300 font-display font-bold text-2xl">
             {auction.title.slice(0, 2).toUpperCase()}
           </div>
         )}
@@ -73,7 +73,7 @@ export function AuctionCard({ auction, onBid, onViewDetails }: AuctionCardProps)
 
         {/* Badges inferiores sobre la imagen */}
         <div className="absolute bottom-3 left-3 right-3 flex items-center justify-between text-white text-xs pointer-events-none">
-          <span className="rounded-full bg-white/90 backdrop-blur-xs px-2.5 py-0.5 text-[10px] font-bold uppercase tracking-wider text-ink">
+          <span className="rounded-full bg-white/90 dark:bg-[#1A1D1B]/90 backdrop-blur-xs px-2.5 py-0.5 text-[10px] font-bold uppercase tracking-wider text-ink dark:text-white">
             {auction.category}
           </span>
           <span className="text-[11px] font-medium text-white/90 drop-shadow-sm flex items-center gap-1">
@@ -86,42 +86,42 @@ export function AuctionCard({ auction, onBid, onViewDetails }: AuctionCardProps)
       {/* 2. Cuerpo con título y vendedor de alta confianza */}
       <div className="flex-1 p-5 flex flex-col justify-between">
         <div>
-          <div className="flex items-center justify-between text-xs text-sage-500 mb-1.5">
+          <div className="flex items-center justify-between text-xs text-sage-500 dark:text-white/60 mb-1.5">
             <span className="flex items-center gap-1 truncate text-[11px]">
-              <MapPin size={12} className="text-amber-600 shrink-0" />
+              <MapPin size={12} className="text-amber-600 dark:text-amber-400 shrink-0" />
               <span className="truncate">{auction.zone}</span>
             </span>
-            <span className="rounded-full bg-paper px-2 py-0.5 text-[10px] font-medium text-ink-soft border border-line shrink-0">
+            <span className="rounded-full bg-paper dark:bg-[#181C1A] px-2 py-0.5 text-[10px] font-medium text-ink-soft dark:text-white/70 border border-line dark:border-white/10 shrink-0">
               {auction.condition}
             </span>
           </div>
 
-          <h3 className="font-display text-base font-bold text-ink leading-snug group-hover:text-amber-700 transition-colors line-clamp-2">
+          <h3 className="font-display text-base font-bold text-ink dark:text-white leading-snug group-hover:text-amber-700 dark:group-hover:text-amber-400 transition-colors line-clamp-2">
             {auction.title}
           </h3>
 
           {/* Vendedor y reputación */}
           <div className="mt-2.5 flex items-center gap-2">
-            <div className="h-7 w-7 rounded-full overflow-hidden bg-amber-100 border border-amber-200 shrink-0">
+            <div className="h-7 w-7 rounded-full overflow-hidden bg-amber-100 dark:bg-amber-950/80 border border-amber-200 dark:border-amber-500/30 shrink-0">
               {auction.sellerAvatar ? (
                 <img src={auction.sellerAvatar} alt={auction.seller} className="h-full w-full object-cover" />
               ) : (
-                <div className="flex h-full w-full items-center justify-center text-[10px] font-bold text-amber-800">
+                <div className="flex h-full w-full items-center justify-center text-[10px] font-bold text-amber-800 dark:text-amber-300">
                   {auction.seller.slice(0, 2).toUpperCase()}
                 </div>
               )}
             </div>
             <div className="min-w-0 flex-1 text-xs">
-              <p className="font-medium text-ink truncate leading-tight flex items-center gap-1">
+              <p className="font-medium text-ink dark:text-white truncate leading-tight flex items-center gap-1">
                 <span>{auction.seller}</span>
-                <ShieldCheck size={12} className="text-jade-600 shrink-0" />
-                <span className="text-amber-700 font-bold flex items-center gap-0.5 text-[11px]">
+                <ShieldCheck size={12} className="text-jade-600 dark:text-jade-400 shrink-0" />
+                <span className="text-amber-700 dark:text-amber-400 font-bold flex items-center gap-0.5 text-[11px]">
                   <Star size={10} className="fill-amber-500 text-amber-500" />
                   {auction.trustScore}
                 </span>
               </p>
               {auction.sellerRole && (
-                <p className="text-[10px] text-sage-500 truncate leading-none mt-0.5">
+                <p className="text-[10px] text-sage-500 dark:text-white/50 truncate leading-none mt-0.5">
                   {auction.sellerRole}
                 </p>
               )}
@@ -130,8 +130,8 @@ export function AuctionCard({ auction, onBid, onViewDetails }: AuctionCardProps)
 
           {/* Causa benéfica asociada */}
           {auction.isBenefic && auction.beneficEntity && (
-            <div className="mt-3 rounded-xl border border-jade-200 bg-jade-50/70 px-3 py-1.5 text-xs text-jade-800 flex items-center gap-1.5">
-              <Heart size={13} className="text-jade-600 shrink-0 fill-jade-600" />
+            <div className="mt-3 rounded-xl border border-jade-200 dark:border-jade-500/30 bg-jade-50/70 dark:bg-jade-950/40 px-3 py-1.5 text-xs text-jade-800 dark:text-jade-300 flex items-center gap-1.5">
+              <Heart size={13} className="text-jade-600 dark:text-jade-400 shrink-0 fill-jade-600 dark:fill-jade-400" />
               <span className="text-[11px] font-semibold truncate leading-tight">
                 {auction.beneficEntity}
               </span>
@@ -139,21 +139,21 @@ export function AuctionCard({ auction, onBid, onViewDetails }: AuctionCardProps)
           )}
 
           {/* 3. Recuadro de Transparencia de Puja Simulada */}
-          <div className="mt-4 rounded-2xl border border-amber-500/30 bg-amber-50/50 p-3.5">
+          <div className="mt-4 rounded-2xl border border-amber-500/30 dark:border-amber-500/20 bg-amber-50/50 dark:bg-amber-950/20 p-3.5">
             <div className="flex items-baseline justify-between">
               <div>
-                <span className="block text-[11px] font-semibold text-sage-600 uppercase tracking-wider">
+                <span className="block text-[11px] font-semibold text-sage-600 dark:text-white/60 uppercase tracking-wider">
                   Puja actual (Simulada)
                 </span>
-                <span className="font-display text-2xl font-bold text-ink tabular-nums">
+                <span className="font-display text-2xl font-bold text-ink dark:text-white tabular-nums">
                   S/ {auction.currentBidSimulated}.00
                 </span>
               </div>
               <div className="text-right text-xs">
-                <span className="block text-[11px] text-sage-500">
+                <span className="block text-[11px] text-sage-500 dark:text-white/50">
                   Base: S/ {auction.initialBidSimulated}
                 </span>
-                <span className="text-[11px] font-semibold text-amber-700">
+                <span className="text-[11px] font-semibold text-amber-700 dark:text-amber-400">
                   +{auction.minIncrement} mín.
                 </span>
               </div>
@@ -162,13 +162,13 @@ export function AuctionCard({ auction, onBid, onViewDetails }: AuctionCardProps)
         </div>
 
         {/* 4. Botones de acción */}
-        <div className="mt-5 pt-3 border-t border-line flex items-center justify-between gap-2 text-xs">
+        <div className="mt-5 pt-3 border-t border-line dark:border-white/10 flex items-center justify-between gap-2 text-xs">
           <button
             type="button"
             onClick={() => onViewDetails(auction)}
-            className="flex-1 inline-flex items-center justify-center gap-1.5 rounded-full border border-line bg-white py-2 text-xs font-semibold text-ink hover:bg-paper hover:border-amber-500 transition focus-visible:outline-2 focus-visible:outline-amber-500 cursor-pointer"
+            className="flex-1 inline-flex items-center justify-center gap-1.5 rounded-full border border-line dark:border-white/15 bg-white dark:bg-[#181C1A] py-2 text-xs font-semibold text-ink dark:text-white hover:bg-paper dark:hover:bg-white/10 hover:border-amber-500 transition focus-visible:outline-2 focus-visible:outline-amber-500 cursor-pointer"
           >
-            <History size={13} className="text-sage-500" />
+            <History size={13} className="text-sage-500 dark:text-white/60" />
             <span>Detalles</span>
           </button>
 

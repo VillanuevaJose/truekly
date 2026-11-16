@@ -34,7 +34,7 @@ export function PublishExchangeStep({ data, onChange }: Props) {
           <label htmlFor="pub-seeking" className="text-xs font-semibold uppercase tracking-wider text-ink">
             ¿Qué buscas a cambio? <span className="text-amber-600">*</span>
           </label>
-          <span className="text-[11px] text-sage-400">Sé específico</span>
+          <span className="text-[11px] text-sage-400 dark:text-sage-500">Sé específico</span>
         </div>
         <input
           id="pub-seeking"
@@ -42,12 +42,12 @@ export function PublishExchangeStep({ data, onChange }: Props) {
           value={data.wantsInReturn}
           onChange={(e) => onChange({ wantsInReturn: e.target.value })}
           placeholder="Ej: Auriculares inalámbricos Sony o monitor para oficina"
-          className="w-full rounded-xl border border-line bg-white px-3.5 py-2.5 text-xs text-ink placeholder:text-sage-400 focus:border-jade-500 focus:outline-none focus:ring-1 focus:ring-jade-500"
+          className="w-full rounded-xl border border-line dark:border-white/10 bg-white dark:bg-[#181C1A] px-3.5 py-2.5 text-xs text-ink dark:text-white placeholder:text-sage-400 dark:placeholder:text-sage-500 focus:border-jade-500 dark:focus:border-jade-400 focus:outline-none focus:ring-1 focus:ring-jade-500"
         />
 
         {/* Sugerencias Rápidas */}
         <div className="mt-2 flex flex-wrap items-center gap-1.5">
-          <span className="inline-flex items-center gap-1 text-[10px] font-medium text-sage-500">
+          <span className="inline-flex items-center gap-1 text-[10px] font-medium text-sage-500 dark:text-sage-400">
             <Sparkles className="h-3 w-3 text-amber-500" />
             <span>Sugerencias:</span>
           </span>
@@ -56,7 +56,7 @@ export function PublishExchangeStep({ data, onChange }: Props) {
               key={prompt}
               type="button"
               onClick={() => onChange({ wantsInReturn: prompt })}
-              className="rounded-full border border-line bg-paper/80 px-2.5 py-1 text-[10px] font-medium text-sage-700 hover:border-jade-400 hover:bg-jade-50/50 hover:text-jade-800 transition"
+              className="rounded-full border border-line dark:border-white/10 bg-paper/80 dark:bg-[#181C1A] px-2.5 py-1 text-[10px] font-medium text-sage-700 dark:text-sage-300 hover:border-jade-400 hover:bg-jade-50/50 dark:hover:bg-jade-500/10 hover:text-jade-800 dark:hover:text-jade-200 transition"
             >
               {prompt}
             </button>
@@ -75,7 +75,7 @@ export function PublishExchangeStep({ data, onChange }: Props) {
               id="pub-zone"
               value={data.zone}
               onChange={(e) => onChange({ zone: e.target.value })}
-              className="w-full appearance-none rounded-xl border border-line bg-white px-3 py-2.5 text-xs text-ink focus:border-jade-500 focus:outline-none focus:ring-1 focus:ring-jade-500"
+              className="w-full appearance-none rounded-xl border border-line dark:border-white/10 bg-white dark:bg-[#181C1A] px-3 py-2.5 text-xs text-ink dark:text-white focus:border-jade-500 dark:focus:border-jade-400 focus:outline-none focus:ring-1 focus:ring-jade-500"
             >
               {zones.map((z) => (
                 <option key={z} value={z}>
@@ -96,7 +96,7 @@ export function PublishExchangeStep({ data, onChange }: Props) {
               id="pub-safepoint"
               value={data.safePointRecommended}
               onChange={(e) => onChange({ safePointRecommended: e.target.value })}
-              className="w-full appearance-none rounded-xl border border-line bg-white px-3 py-2.5 text-xs text-ink focus:border-jade-500 focus:outline-none focus:ring-1 focus:ring-jade-500"
+              className="w-full appearance-none rounded-xl border border-line dark:border-white/10 bg-white dark:bg-[#181C1A] px-3 py-2.5 text-xs text-ink dark:text-white focus:border-jade-500 dark:focus:border-jade-400 focus:outline-none focus:ring-1 focus:ring-jade-500"
             >
               {SAFE_POINTS_LIST.map((point) => (
                 <option key={point} value={point}>
@@ -110,11 +110,11 @@ export function PublishExchangeStep({ data, onChange }: Props) {
       </div>
 
       {/* Aviso de Seguridad */}
-      <div className="rounded-xl border border-line bg-jade-50/40 p-3 flex items-start gap-2.5">
-        <ShieldCheck className="h-4 w-4 text-jade-700 shrink-0 mt-0.5" />
-        <div className="text-[11px] text-jade-900 leading-relaxed">
+      <div className="rounded-xl border border-line dark:border-jade-500/20 bg-jade-50/40 dark:bg-jade-500/10 p-3 flex items-start gap-2.5">
+        <ShieldCheck className="h-4 w-4 text-jade-700 dark:text-jade-400 shrink-0 mt-0.5" />
+        <div className="text-[11px] text-jade-900 dark:text-jade-200 leading-relaxed">
           <p className="font-semibold">Trueque seguro y presencial</p>
-          <p className="text-sage-600">
+          <p className="text-sage-600 dark:text-sage-400">
             Recomendamos realizar todo trueque en zonas iluminadas y con concurrencia. Nunca compartas datos bancarios.
           </p>
         </div>

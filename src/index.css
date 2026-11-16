@@ -1,5 +1,7 @@
 @import "tailwindcss";
 
+@custom-variant dark (&:where(.dark, .dark *));
+
 @theme {
   --color-ink: #16201C;
   --color-ink-soft: #3A453F;
@@ -22,6 +24,19 @@
   --color-line: #E4E7E3;
 
   --font-sans: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+}
+
+/* Tokens semánticos adaptados al modo oscuro */
+.dark {
+  --color-paper: #070908;
+  --color-ink: #F3F4F3;
+  --color-ink-soft: #A3B1A9;
+  --color-line: rgba(255, 255, 255, 0.1);
+  --color-sage-400: #9AA8A0;
+  --color-sage-500: #7E8E86;
+  --color-jade-50: rgba(15, 109, 95, 0.2);
+  --color-jade-100: rgba(15, 109, 95, 0.35);
+  --color-jade-700: #34D399;
 }
 
 @font-face {

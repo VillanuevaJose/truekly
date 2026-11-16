@@ -143,16 +143,16 @@ export function CommunityChat({
   const totalMembers = community.membersCount + (isJoined ? 1 : 0);
 
   return (
-    <div className="flex h-[calc(100vh-175px)] w-full rounded-2xl border border-line bg-paper overflow-hidden shadow-sm animate-in fade-in duration-150">
+    <div className="relative flex h-[calc(100vh-175px)] w-full rounded-2xl border border-line dark:border-white/10 bg-paper dark:bg-[#070908] overflow-hidden shadow-sm animate-in fade-in duration-150">
       {/* ================= COLUMNA PRINCIPAL DE CHAT ================= */}
-      <div className="flex-1 flex flex-col min-w-0 bg-[#f7f8f6]">
+      <div className="flex-1 flex flex-col min-w-0 bg-[#f7f8f6] dark:bg-[#070908]">
         {/* 1. Header estilo WhatsApp */}
-        <header className="flex items-center justify-between px-4 py-2.5 bg-white border-b border-line shrink-0">
+        <header className="flex items-center justify-between px-4 py-2.5 bg-white dark:bg-[#0C0E0D] border-b border-line dark:border-white/10 shrink-0">
           <div className="flex items-center gap-3 min-w-0 flex-1">
             <button
               type="button"
               onClick={onBack}
-              className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full border border-line bg-white text-ink transition hover:bg-paper hover:border-jade-500 focus-visible:outline-2 focus-visible:outline-jade-500"
+              className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full border border-line dark:border-white/10 bg-white dark:bg-[#181C1A] text-ink dark:text-white transition hover:bg-paper dark:hover:bg-white/10 hover:border-jade-500 focus-visible:outline-2 focus-visible:outline-jade-500"
               aria-label="Volver a la lista de comunidades"
             >
               <ArrowLeft size={17} />
@@ -162,10 +162,10 @@ export function CommunityChat({
             <button
               type="button"
               onClick={() => setShowRightPanel((prev) => !prev)}
-              className="flex items-center gap-3 min-w-0 text-left hover:bg-paper/70 transition rounded-xl p-1.5 -m-1 focus-visible:outline-2 focus-visible:outline-jade-500 group flex-1"
+              className="flex items-center gap-3 min-w-0 text-left hover:bg-paper/70 dark:hover:bg-white/5 transition rounded-xl p-1.5 -m-1 focus-visible:outline-2 focus-visible:outline-jade-500 group flex-1"
               title="Haz clic para ver info del grupo"
             >
-              <div className="h-10 w-10 shrink-0 overflow-hidden rounded-full bg-jade-100 border border-line">
+              <div className="h-10 w-10 shrink-0 overflow-hidden rounded-full bg-jade-100 dark:bg-jade-950/80 border border-line dark:border-white/10">
                 {community.image ? (
                   <img
                     src={community.image}
@@ -212,12 +212,12 @@ export function CommunityChat({
         {/* 2. Área de Mensajes */}
         <div className="flex-1 overflow-y-auto p-4 sm:p-5 space-y-3.5 no-scrollbar">
           {/* Banner central de bienvenida */}
-          <div className="mx-auto max-w-sm rounded-xl border border-line bg-white/90 p-3 text-center text-xs text-ink-soft shadow-2xs">
-            <div className="flex items-center justify-center gap-1.5 font-semibold text-jade-700 mb-0.5">
+          <div className="mx-auto max-w-sm rounded-xl border border-line dark:border-white/10 bg-white/90 dark:bg-[#141715]/90 p-3 text-center text-xs text-ink-soft dark:text-white/70 shadow-2xs">
+            <div className="flex items-center justify-center gap-1.5 font-semibold text-jade-700 dark:text-jade-400 mb-0.5">
               <Sparkles size={13} />
               <span>Grupo de trueque local</span>
             </div>
-            <p className="text-[11px] text-sage-600 leading-relaxed">
+            <p className="text-[11px] text-sage-600 dark:text-white/60 leading-relaxed">
               Acuerden intercambios libres y recuerden reunirse en los <strong>Puntos Seguros</strong> autorizados de Chimbote.
             </p>
           </div>
@@ -232,7 +232,7 @@ export function CommunityChat({
                   isMe ? "ml-auto flex-row-reverse" : "mr-auto"
                 }`}
               >
-                <div className="h-7 w-7 shrink-0 overflow-hidden rounded-full bg-jade-100 flex items-center justify-center text-[11px] font-bold text-jade-700 border border-line">
+                <div className="h-7 w-7 shrink-0 overflow-hidden rounded-full bg-jade-100 dark:bg-jade-950/80 flex items-center justify-center text-[11px] font-bold text-jade-700 dark:text-jade-300 border border-line dark:border-white/10">
                   {msg.senderAvatar ? (
                     <img src={msg.senderAvatar} alt={msg.senderName} className="h-full w-full object-cover" />
                   ) : (
@@ -241,9 +241,9 @@ export function CommunityChat({
                 </div>
 
                 <div className="space-y-0.5">
-                  <div className={`flex items-center gap-1.5 text-[10px] text-sage-500 ${isMe ? "justify-end" : ""}`}>
-                    <span className="font-semibold text-ink">{isMe ? "Tú" : msg.senderName}</span>
-                    {msg.verified && <CheckCircle2 size={11} className="text-jade-600 shrink-0" />}
+                  <div className={`flex items-center gap-1.5 text-[10px] text-sage-500 dark:text-white/50 ${isMe ? "justify-end" : ""}`}>
+                    <span className="font-semibold text-ink dark:text-white">{isMe ? "Tú" : msg.senderName}</span>
+                    {msg.verified && <CheckCircle2 size={11} className="text-jade-600 dark:text-jade-400 shrink-0" />}
                     <span>•</span>
                     <span>{msg.zone}</span>
                     <span>•</span>
@@ -254,7 +254,7 @@ export function CommunityChat({
                     className={`rounded-2xl px-3.5 py-2 text-xs sm:text-sm leading-relaxed shadow-2xs ${
                       isMe
                         ? "bg-jade-500 text-white rounded-tr-xs"
-                        : "bg-white text-ink border border-line rounded-tl-xs"
+                        : "bg-white dark:bg-[#161917] text-ink dark:text-white border border-line dark:border-white/10 rounded-tl-xs"
                     }`}
                   >
                     <p>{msg.text}</p>
@@ -264,12 +264,12 @@ export function CommunityChat({
                         className={`mt-2 rounded-xl p-2.5 border text-xs ${
                           isMe
                             ? "bg-jade-600/50 border-jade-400 text-white"
-                            : "bg-jade-50/70 border-jade-200 text-ink"
+                            : "bg-jade-50/70 dark:bg-jade-950/50 border-jade-200 dark:border-jade-500/30 text-ink dark:text-white"
                         }`}
                       >
                         <div className="flex items-center gap-1.5 font-bold mb-1.5">
-                          <Repeat size={12} className={isMe ? "text-amber-300" : "text-jade-700"} />
-                          <span className={isMe ? "text-white" : "text-jade-800"}>Propuesta de Trueque</span>
+                          <Repeat size={12} className={isMe ? "text-amber-300" : "text-jade-700 dark:text-jade-400"} />
+                          <span className={isMe ? "text-white" : "text-jade-800 dark:text-jade-300"}>Propuesta de Trueque</span>
                         </div>
                         <div className="space-y-0.5 text-[11px]">
                           <div><span className="font-semibold opacity-80">Ofrece:</span> {msg.tradeOffered}</div>
@@ -321,7 +321,7 @@ export function CommunityChat({
         )}
 
         {/* 4. Barra de Enviar Mensaje */}
-        <footer className="p-3 bg-white border-t border-line shrink-0">
+        <footer className="p-3 bg-white dark:bg-[#0C0E0D] border-t border-line dark:border-white/10 shrink-0">
           {isJoined ? (
             <form onSubmit={handleSendMessage} className="flex items-center gap-2">
               <button
@@ -331,7 +331,7 @@ export function CommunityChat({
                 className={`flex h-10 shrink-0 items-center gap-1.5 px-3 rounded-xl border text-xs font-semibold transition ${
                   showTradeComposer
                     ? "bg-jade-500 text-white border-jade-500"
-                    : "bg-paper text-jade-700 border-line hover:border-jade-400 hover:bg-jade-50"
+                    : "bg-paper dark:bg-[#181C1A] text-jade-700 dark:text-jade-300 border-line dark:border-white/10 hover:border-jade-400 hover:bg-jade-50 dark:hover:bg-white/10"
                 }`}
               >
                 <Repeat size={15} />
@@ -343,7 +343,7 @@ export function CommunityChat({
                 value={inputVal}
                 onChange={(e) => setInputVal(e.target.value)}
                 placeholder={`Escribe un mensaje en ${community.name}...`}
-                className="flex-1 h-10 px-4 rounded-xl border border-line bg-paper text-xs sm:text-sm text-ink outline-none transition focus:border-jade-500 focus:bg-white"
+                className="flex-1 h-10 px-4 rounded-xl border border-line dark:border-white/10 bg-paper dark:bg-[#181C1A] text-xs sm:text-sm text-ink dark:text-white outline-none transition placeholder:text-sage-400 dark:placeholder:text-white/40 focus:border-jade-500 focus:bg-white dark:focus:bg-[#1D211F]"
               />
 
               <button
@@ -356,9 +356,9 @@ export function CommunityChat({
               </button>
             </form>
           ) : (
-            <div className="flex flex-wrap items-center justify-between gap-3 bg-paper p-3 rounded-2xl border border-line">
-              <div className="flex items-center gap-2 text-xs text-ink-soft">
-                <Users size={16} className="text-jade-600 shrink-0" />
+            <div className="flex flex-wrap items-center justify-between gap-3 bg-paper dark:bg-[#141715] p-3 rounded-2xl border border-line dark:border-white/10">
+              <div className="flex items-center gap-2 text-xs text-ink-soft dark:text-white/70">
+                <Users size={16} className="text-jade-600 dark:text-jade-400 shrink-0" />
                 <span>Debes unirte a <strong>{community.name}</strong> para poder enviar mensajes y proponer trueques.</span>
               </div>
               {onToggleJoin && (
@@ -377,14 +377,14 @@ export function CommunityChat({
 
       {/* ================= COLUMNA DERECHA: INFO DEL GRUPO (ESTILO WHATSAPP) ================= */}
       {showRightPanel && (
-        <aside className="w-80 sm:w-96 border-l border-line bg-white flex flex-col shrink-0 animate-in slide-in-from-right duration-200">
+        <aside className="absolute inset-0 z-20 md:relative md:inset-auto md:z-auto w-full md:w-80 lg:w-96 border-l border-line dark:border-white/10 bg-white dark:bg-[#0E1110] flex flex-col shrink-0 animate-in slide-in-from-right duration-200">
           {/* Header del panel */}
-          <div className="h-14 px-4 flex items-center justify-between border-b border-line bg-white shrink-0">
-            <span className="font-display text-sm font-bold text-ink">Info. del grupo</span>
+          <div className="h-14 px-4 flex items-center justify-between border-b border-line dark:border-white/10 bg-white dark:bg-[#0E1110] shrink-0">
+            <span className="font-display text-sm font-bold text-ink dark:text-white">Info. del grupo</span>
             <button
               type="button"
               onClick={() => setShowRightPanel(false)}
-              className="p-1.5 rounded-full text-sage-500 hover:text-ink hover:bg-paper transition"
+              className="p-1.5 rounded-full text-sage-500 dark:text-white/60 hover:text-ink dark:hover:text-white hover:bg-paper dark:hover:bg-white/10 transition"
               aria-label="Cerrar panel de información"
             >
               <X size={18} />

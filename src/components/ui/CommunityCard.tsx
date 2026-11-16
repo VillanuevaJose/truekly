@@ -41,12 +41,12 @@ export function CommunityCard({
   return (
     <article
       onClick={onOpenChat}
-      className="flex flex-col justify-between rounded-2xl border border-line bg-white p-5 transition-all duration-200 hover:-translate-y-0.5 hover:border-jade-400 hover:shadow-md cursor-pointer group"
+      className="flex flex-col justify-between rounded-2xl border border-line bg-white dark:bg-[#121413] dark:border-white/10 p-5 transition-all duration-200 hover:-translate-y-0.5 hover:border-jade-400 hover:shadow-md cursor-pointer group"
     >
       {/* Cuerpo superior: Avatar a la izquierda, detalles a la derecha */}
       <div className="flex items-start gap-4">
         {/* Avatar cuadrado con esquinas redondeadas 64x64px */}
-        <div className="h-16 w-16 shrink-0 overflow-hidden rounded-2xl bg-jade-100 flex items-center justify-center border border-jade-100 shadow-xs group-hover:scale-102 transition-transform">
+        <div className="h-16 w-16 shrink-0 overflow-hidden rounded-2xl bg-jade-100 dark:bg-jade-950/80 flex items-center justify-center border border-jade-100 dark:border-jade-500/30 shadow-xs group-hover:scale-102 transition-transform">
           {showImage ? (
             <img
               src={community.image}
@@ -57,7 +57,7 @@ export function CommunityCard({
             />
           ) : (
             <span
-              className="font-display text-lg font-bold text-jade-700 tracking-wider select-none"
+              className="font-display text-lg font-bold text-jade-700 dark:text-jade-300 tracking-wider select-none"
               aria-hidden="true"
             >
               {initials}
@@ -67,22 +67,22 @@ export function CommunityCard({
 
         {/* Detalles: Categoría, Nombre, Descripción (line-clamp-2) y Chip de miembros */}
         <div className="flex-1 min-w-0">
-          <span className="block text-[11px] font-semibold uppercase tracking-wider text-jade-600 truncate">
+          <span className="block text-[11px] font-semibold uppercase tracking-wider text-jade-600 dark:text-jade-400 truncate">
             {community.category}
           </span>
-          <h3 className="mt-0.5 font-display text-base font-bold text-ink leading-snug truncate group-hover:text-jade-700 transition-colors">
+          <h3 className="mt-0.5 font-display text-base font-bold text-ink dark:text-white leading-snug truncate group-hover:text-jade-700 dark:group-hover:text-jade-400 transition-colors">
             {community.name}
           </h3>
-          <p className="mt-1 line-clamp-2 text-xs leading-relaxed text-ink-soft">
+          <p className="mt-1 line-clamp-2 text-xs leading-relaxed text-ink-soft dark:text-white/70">
             {community.description}
           </p>
           <div className="mt-2.5 flex items-center gap-2">
-            <span className="inline-flex items-center gap-1 rounded-full bg-jade-50 px-2.5 py-0.5 text-[11px] font-semibold text-jade-700">
+            <span className="inline-flex items-center gap-1 rounded-full bg-jade-50 dark:bg-jade-950/80 px-2.5 py-0.5 text-[11px] font-semibold text-jade-700 dark:text-jade-300">
               <Users size={12} className="shrink-0" />
               <span>{community.membersCount + (isJoined ? 1 : 0)} miembros</span>
             </span>
 
-            <span className="inline-flex items-center gap-1 text-[11px] font-medium text-sage-500 group-hover:text-jade-600 transition-colors">
+            <span className="inline-flex items-center gap-1 text-[11px] font-medium text-sage-500 dark:text-white/60 group-hover:text-jade-600 dark:group-hover:text-jade-400 transition-colors">
               <MessageSquare size={12} />
               <span>Ver chat</span>
             </span>
@@ -91,8 +91,8 @@ export function CommunityCard({
       </div>
 
       {/* Pie de la tarjeta: Ubicación a la izquierda, botón de acción a la derecha */}
-      <div className="mt-5 flex items-center justify-between border-t border-line pt-3.5 text-xs">
-        <span className="flex items-center gap-1.5 text-sage-500 truncate max-w-[55%]">
+      <div className="mt-5 flex items-center justify-between border-t border-line dark:border-white/10 pt-3.5 text-xs">
+        <span className="flex items-center gap-1.5 text-sage-500 dark:text-white/60 truncate max-w-[55%]">
           <MapPin size={13} className="shrink-0 text-jade-500" />
           <span className="truncate">{community.zone}</span>
         </span>
@@ -102,7 +102,7 @@ export function CommunityCard({
           onClick={handleToggle}
           className={`inline-flex items-center rounded-full px-4 py-1.5 text-xs font-semibold transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-jade-500 ${
             isJoined
-              ? "border border-jade-600/40 bg-jade-50 text-jade-700 hover:bg-jade-100"
+              ? "border border-jade-600/40 bg-jade-50 dark:bg-jade-950/80 text-jade-700 dark:text-jade-300 hover:bg-jade-100 dark:hover:bg-jade-900/50"
               : "bg-jade-500 text-paper hover:bg-jade-600 shadow-xs"
           }`}
         >

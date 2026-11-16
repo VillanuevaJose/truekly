@@ -220,7 +220,7 @@ export default function Landing({
           ========================================================= */}
       <section 
         id="inicio"
-        className="relative w-full h-screen min-h-[680px] max-h-[1080px] overflow-hidden flex flex-col justify-between p-5 sm:p-8 lg:p-12 sticky top-0 z-10"
+        className="relative w-full h-[100dvh] min-h-[580px] sm:min-h-[680px] max-h-[1080px] overflow-hidden flex flex-col justify-between p-4 sm:p-8 lg:p-12 sticky top-0 z-10"
       >
         {/* Fondo Cinematográfico con Zoom-Out Lento */}
         <div className="absolute inset-0 z-0 overflow-hidden pointer-events-none">
@@ -403,7 +403,7 @@ export default function Landing({
           
           {/* Titular Masivo que ocupa todo el ancho */}
           <div className={`opacity-0 ${isLoaded ? "lyniq-headline-enter" : ""}`}>
-            <h1 className={`text-[clamp(54px,14vw,220px)] font-bold tracking-[-0.06em] leading-[0.82] uppercase select-none text-left ${
+            <h1 className={`text-[clamp(34px,11vw,200px)] font-bold tracking-[-0.05em] leading-[0.88] uppercase select-none text-left ${
               isDark ? "text-white" : "text-ink"
             }`}>
               Intercambio
@@ -411,20 +411,20 @@ export default function Landing({
           </div>
 
           {/* Fila Inferior con Descripción Editorial y Botón de Inicio */}
-          <div className={`mt-6 pt-5 border-t flex flex-col md:flex-row md:items-end justify-between gap-6 opacity-0 ${
+          <div className={`mt-5 sm:mt-6 pt-4 sm:pt-5 border-t flex flex-col md:flex-row md:items-end justify-between gap-4 sm:gap-6 opacity-0 ${
             isDark ? "border-white/15" : "border-line"
           } ${isLoaded ? "lyniq-spring-nav" : ""}`}>
-            <p className={`max-w-xl text-sm sm:text-base leading-relaxed font-normal ${
+            <p className={`max-w-xl text-xs sm:text-base leading-relaxed font-normal ${
               isDark ? "text-white/80" : "text-ink/80"
             }`}>
               Cambia lo que tienes por lo que necesitas. La primera plataforma de trueque directo entre personas con perfiles verificados y acuerdos claros antes de salir de casa.
             </p>
 
-            <div className="flex items-center gap-4 shrink-0">
+            <div className="flex items-center gap-4 shrink-0 w-full sm:w-auto">
               <a
                 href="#feed"
                 onClick={handleFeed}
-                className="inline-flex items-center gap-3 rounded-full bg-jade-600 hover:bg-jade-500 text-white font-semibold text-xs uppercase tracking-widest px-7 py-4 transition-all duration-200 active:scale-95 shadow-xl shadow-jade-950/20"
+                className="inline-flex w-full sm:w-auto items-center justify-center gap-3 rounded-full bg-jade-600 hover:bg-jade-500 text-white font-semibold text-xs uppercase tracking-widest px-6 py-3.5 sm:px-7 sm:py-4 transition-all duration-200 active:scale-95 shadow-xl shadow-jade-950/20"
               >
                 <span>Ver artículos en Chimbote</span>
                 <ArrowRight className="w-4 h-4" />

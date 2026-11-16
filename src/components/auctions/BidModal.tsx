@@ -61,14 +61,14 @@ export function BidModal({
         role="dialog"
         aria-modal="true"
       >
-        <div className="w-full max-w-md rounded-3xl border border-line bg-white p-7 text-center shadow-2xl animate-in zoom-in-95 duration-200">
-          <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-2xl bg-amber-50 text-amber-600 border border-amber-200 shadow-xs mb-4">
+        <div className="w-full max-w-md rounded-3xl border border-line dark:border-white/10 bg-white dark:bg-[#121413] p-7 text-center shadow-2xl animate-in zoom-in-95 duration-200">
+          <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-2xl bg-amber-50 dark:bg-amber-950/80 text-amber-600 dark:text-amber-400 border border-amber-200 dark:border-amber-500/30 shadow-xs mb-4">
             <Gavel size={28} />
           </div>
-          <h2 className="font-display text-xl font-bold text-ink">
+          <h2 className="font-display text-xl font-bold text-ink dark:text-white">
             Inicia sesión para realizar una puja
           </h2>
-          <p className="mt-2 text-xs text-sage-600 leading-relaxed">
+          <p className="mt-2 text-xs text-sage-600 dark:text-white/60 leading-relaxed">
             Para participar en las subastas benéficas y registrar tus ofertas simuladas en Truekly necesitas tener una cuenta.
           </p>
           <div className="mt-6 flex flex-col gap-2.5">
@@ -88,7 +88,7 @@ export function BidModal({
                 onClose();
                 onRequireAuth?.("register");
               }}
-              className="w-full rounded-full border border-line bg-white py-2.5 text-xs font-semibold text-ink hover:bg-paper transition cursor-pointer"
+              className="w-full rounded-full border border-line dark:border-white/15 bg-white dark:bg-[#181C1A] py-2.5 text-xs font-semibold text-ink dark:text-white hover:bg-paper dark:hover:bg-white/10 transition cursor-pointer"
             >
               Registrarse gratis
             </button>
@@ -129,9 +129,9 @@ export function BidModal({
       role="dialog"
       aria-modal="true"
     >
-      <div className="relative w-full max-w-lg rounded-3xl border border-line bg-white shadow-2xl animate-in zoom-in-95 duration-200 overflow-hidden">
+      <div className="relative w-full max-w-lg rounded-3xl border border-line dark:border-white/10 bg-white dark:bg-[#121413] shadow-2xl animate-in zoom-in-95 duration-200 overflow-hidden">
         {/* Cabecera del modal */}
-        <div className="flex items-center justify-between border-b border-line px-6 py-4 bg-amber-50/60">
+        <div className="flex items-center justify-between border-b border-line dark:border-white/10 px-6 py-4 bg-amber-50/60 dark:bg-amber-950/40">
           <div className="flex items-center gap-3 min-w-0">
             <div className="h-10 w-10 rounded-2xl overflow-hidden bg-amber-100 border border-amber-200 shrink-0">
               <img
@@ -271,7 +271,7 @@ export function BidModal({
                   required
                   value={bidAmount || ""}
                   onChange={(e) => setBidAmount(Number(e.target.value))}
-                  className="w-full h-10 pl-9 pr-3.5 rounded-xl border border-line bg-paper text-ink font-bold text-sm outline-none transition focus:border-amber-500 focus:bg-white"
+                  className="w-full h-10 pl-9 pr-3.5 rounded-xl border border-line dark:border-white/10 bg-paper dark:bg-[#181C1A] text-ink dark:text-white font-bold text-sm outline-none transition focus:border-amber-500 focus:bg-white dark:focus:bg-[#1D211F]"
                 />
               </div>
               {bidAmount < minAllowedBid && (
@@ -282,9 +282,9 @@ export function BidModal({
             </div>
 
             {/* Banner de Seguridad y Transparencia */}
-            <div className="rounded-xl border border-amber-300 bg-amber-50/80 p-3 flex items-start gap-2.5">
-              <Lock size={15} className="text-amber-700 shrink-0 mt-0.5" />
-              <p className="text-[11px] text-amber-900 leading-relaxed">
+            <div className="rounded-xl border border-amber-300 dark:border-amber-500/30 bg-amber-50/80 dark:bg-amber-950/30 p-3 flex items-start gap-2.5">
+              <Lock size={15} className="text-amber-700 dark:text-amber-400 shrink-0 mt-0.5" />
+              <p className="text-[11px] text-amber-900 dark:text-amber-200 leading-relaxed">
                 <strong>Aviso de Transparencia:</strong> En Truekly las subastas son 100% simuladas y didácticas. Los montos en Soles (S/) no representan dinero real ni cargos bancarios.
               </p>
             </div>
@@ -294,7 +294,7 @@ export function BidModal({
               <button
                 type="button"
                 onClick={handleClose}
-                className="rounded-full border border-line bg-white px-4 py-2 text-xs font-semibold text-ink hover:bg-paper transition cursor-pointer"
+                className="rounded-full border border-line dark:border-white/15 bg-white dark:bg-[#181C1A] px-4 py-2 text-xs font-semibold text-ink dark:text-white hover:bg-paper dark:hover:bg-white/10 transition cursor-pointer"
               >
                 Cancelar
               </button>

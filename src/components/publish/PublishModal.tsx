@@ -95,7 +95,7 @@ export function PublishModal({ isOpen, onClose, onPublishSuccess, onRequireAuth 
       aria-modal="true"
       aria-labelledby="modal-title"
     >
-      <div className="relative w-full max-w-xl max-h-[92vh] overflow-y-auto rounded-2xl border border-line bg-white shadow-xl flex flex-col">
+      <div className="relative w-full max-w-xl max-h-[92vh] overflow-y-auto rounded-2xl border border-line dark:border-white/10 bg-white dark:bg-[#121413] shadow-xl flex flex-col">
         <PublishHeader
           step={step}
           isDone={isDone}
@@ -129,8 +129,8 @@ export function PublishModal({ isOpen, onClose, onPublishSuccess, onRequireAuth 
 
         {/* Pie de navegación */}
         {user && !isDone && (
-          <div className="sticky bottom-0 border-t border-line bg-paper/60 px-5 py-3.5 backdrop-blur-md flex items-center justify-between gap-3">
-            <span className="text-[11px] text-sage-500 hidden sm:inline">
+          <div className="sticky bottom-0 border-t border-line dark:border-white/10 bg-paper/60 dark:bg-[#181C1A]/80 px-5 py-3.5 backdrop-blur-md flex items-center justify-between gap-3">
+            <span className="text-[11px] text-sage-500 dark:text-white/60 hidden sm:inline">
               {step === 1 && "Mínimo 3 fotos y título descriptivo"}
               {step === 2 && "Describe el estado real del objeto"}
               {step === 3 && "Sin precios en soles: trueque libre"}
@@ -141,7 +141,7 @@ export function PublishModal({ isOpen, onClose, onPublishSuccess, onRequireAuth 
                 <button
                   type="button"
                   onClick={() => setStep((s) => (s - 1) as 1 | 2 | 3)}
-                  className="w-1/2 sm:w-auto rounded-xl border border-line bg-white px-4 py-2 text-xs font-semibold text-ink hover:bg-paper"
+                  className="w-1/2 sm:w-auto rounded-xl border border-line dark:border-white/10 bg-white dark:bg-[#181C1A] px-4 py-2 text-xs font-semibold text-ink dark:text-white hover:bg-paper dark:hover:bg-white/10"
                 >
                   Atrás
                 </button>

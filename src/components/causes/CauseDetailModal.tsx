@@ -56,7 +56,7 @@ export function CauseDetailModal({ cause, onClose, onDonate }: CauseDetailModalP
     >
       <div
         ref={modalRef}
-        className="relative w-full max-w-2xl max-h-[90vh] overflow-y-auto rounded-3xl border border-line bg-white shadow-2xl animate-in zoom-in-95 duration-200 no-scrollbar"
+        className="relative w-full max-w-2xl max-h-[90vh] overflow-y-auto rounded-3xl border border-line dark:border-white/10 bg-white dark:bg-[#121413] shadow-2xl animate-in zoom-in-95 duration-200 no-scrollbar"
       >
         {/* Cabecera con Imagen de portada */}
         <div className="relative h-56 sm:h-64 w-full bg-paper overflow-hidden">
@@ -148,10 +148,10 @@ export function CauseDetailModal({ cause, onClose, onDonate }: CauseDetailModalP
               {cause.acceptedItems.map((item, idx) => (
                 <div
                   key={idx}
-                  className="flex items-center gap-2 p-2.5 rounded-xl border border-line bg-white hover:border-jade-400 transition"
+                  className="flex items-center gap-2 p-2.5 rounded-xl border border-line dark:border-white/10 bg-white dark:bg-[#161917] hover:border-jade-400 transition"
                 >
-                  <CheckCircle2 size={15} className="text-jade-600 shrink-0" />
-                  <span className="text-xs font-medium text-ink">{item}</span>
+                  <CheckCircle2 size={15} className="text-jade-600 dark:text-jade-400 shrink-0" />
+                  <span className="text-xs font-medium text-ink dark:text-white">{item}</span>
                 </div>
               ))}
             </div>
@@ -191,7 +191,7 @@ export function CauseDetailModal({ cause, onClose, onDonate }: CauseDetailModalP
             <button
               type="button"
               onClick={onClose}
-              className="w-full sm:w-auto rounded-full border border-line bg-white px-5 py-2.5 text-xs font-semibold text-ink hover:bg-paper transition"
+              className="w-full sm:w-auto rounded-full border border-line dark:border-white/15 bg-white dark:bg-[#181C1A] px-5 py-2.5 text-xs font-semibold text-ink dark:text-white hover:bg-paper dark:hover:bg-white/10 transition"
             >
               Volver al catálogo
             </button>
