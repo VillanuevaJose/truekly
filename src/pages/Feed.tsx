@@ -25,8 +25,11 @@ import {
   User,
   Package,
   LogOut,
+  Sun,
+  Moon,
 } from "lucide-react";
 import { useAuth } from "../context/AuthContext";
+import { useTheme } from "../context/ThemeContext";
 import {
   products,
   mockCommunities,
@@ -192,6 +195,7 @@ export default function Feed({
   onOpenProfile,
 }: FeedProps) {
   const { user, logout } = useAuth();
+  const { isDark, toggleTheme } = useTheme();
   const [activeSection, setActiveSection] = useState<FeedSection>("trueques");
   const [activeCategory, setActiveCategory] = useState<Category | "Todos">("Todos");
   const [activeCondition, setActiveCondition] = useState<Condition | "Todas">("Todas");
@@ -592,6 +596,21 @@ export default function Feed({
                     </div>
                   )}
                 </div>
+
+                {/* Alternar modo claro / oscuro a la derecha del perfil */}
+                <button
+                  type="button"
+                  onClick={toggleTheme}
+                  aria-label={isDark ? "Cambiar a modo claro" : "Cambiar a modo oscuro"}
+                  title={isDark ? "Cambiar a modo claro" : "Cambiar a modo oscuro"}
+                  className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full border border-line bg-white text-ink shadow-xs transition hover:bg-paper hover:text-jade-600 active:scale-95 focus-visible:outline-2 focus-visible:outline-jade-500"
+                >
+                  {isDark ? (
+                    <Sun size={18} className="text-amber-500" />
+                  ) : (
+                    <Moon size={18} className="text-sage-500" />
+                  )}
+                </button>
               </div>
             ) : (
               <div className="flex shrink-0 items-center gap-2 sm:gap-3">
@@ -608,6 +627,20 @@ export default function Feed({
                   className="rounded-full border border-[#1F7A6B] bg-[#1F7A6B] px-3.5 py-1.5 text-xs font-semibold text-white transition hover:bg-[#1F7A6B]/90"
                 >
                   Registrarse
+                </button>
+
+                <button
+                  type="button"
+                  onClick={toggleTheme}
+                  aria-label={isDark ? "Cambiar a modo claro" : "Cambiar a modo oscuro"}
+                  title={isDark ? "Cambiar a modo claro" : "Cambiar a modo oscuro"}
+                  className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full border border-line bg-white text-ink shadow-xs transition hover:bg-paper hover:text-jade-600 active:scale-95 focus-visible:outline-2 focus-visible:outline-jade-500"
+                >
+                  {isDark ? (
+                    <Sun size={16} className="text-amber-500" />
+                  ) : (
+                    <Moon size={16} className="text-sage-500" />
+                  )}
                 </button>
               </div>
             )}

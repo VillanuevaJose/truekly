@@ -242,7 +242,7 @@ export default function ProfilePage({ onBack, onNavigateToFeed }: ProfilePagePro
             <div>
               <div className="flex flex-wrap items-center gap-2">
                 {/* Nombre de usuario visible como titular principal para evitar doxxing/búsquedas en redes */}
-                <h1 className="text-xl sm:text-2xl font-bold text-ink tracking-tight font-mono">
+                <h1 className="text-xl sm:text-2xl font-bold text-ink tracking-tight">
                   {user.username ? `@${user.username}` : user.nombre}
                 </h1>
                 <span className="inline-flex items-center gap-1 rounded-full bg-amber-50 px-2.5 py-0.5 text-[11px] font-medium text-amber-800 border border-amber-200">
@@ -451,7 +451,7 @@ export default function ProfilePage({ onBack, onNavigateToFeed }: ProfilePagePro
                       Correo electrónico vinculado
                     </span>
                     <div className="mt-1 flex items-center justify-between">
-                      <span className="text-xs font-semibold text-ink font-mono">{maskedEmail}</span>
+                      <span className="text-xs font-semibold text-ink">{maskedEmail}</span>
                       <span className="inline-flex items-center gap-1 text-[10px] font-semibold text-jade-600">
                         <CheckCircle2 className="h-3 w-3" aria-hidden="true" />
                         <span>Verificado</span>
@@ -481,7 +481,7 @@ export default function ProfilePage({ onBack, onNavigateToFeed }: ProfilePagePro
                     <span className="block text-[11px] font-medium text-sage-500">
                       Identificador visible en el feed
                     </span>
-                    <span className="mt-1 block text-xs font-mono font-semibold text-ink">
+                    <span className="mt-1 block text-xs font-semibold text-ink">
                       @{user.username || "usuario"}
                     </span>
                     <span className="mt-0.5 block text-[10px] text-sage-400">

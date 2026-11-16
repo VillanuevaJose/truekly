@@ -211,7 +211,7 @@ export default function LoginPage() {
             <div className="w-full border-t border-line" />
           </div>
           <div className="relative flex justify-center text-xs">
-            <span className="bg-white px-3 font-mono text-[11px] uppercase tracking-wider text-sage-500">
+            <span className="bg-white px-3 text-[11px] font-medium uppercase tracking-wider text-sage-500">
               o
             </span>
           </div>

@@ -582,9 +582,6 @@ export default function RegisterPage() {
         selfie_path: selfieStoragePath,
         dni_foto_path: dniStoragePath,
         identidad_verificada: true,
-        genero: genero,
-        fecha_nacimiento: fechaNacimiento || null,
-        edad: edadCalculada || null,
       });
 
       if (profileError) {
@@ -951,7 +948,7 @@ export default function RegisterPage() {
                       setNombreUsuario(clean);
                     }}
                     placeholder="Ingrese su nombre de usuario"
-                    className="w-full h-10 pl-9 pr-3 rounded-xl border border-line bg-white text-sm text-ink placeholder:text-sage-400 outline-none transition-all duration-200 focus:border-jade-500 focus:ring-2 focus:ring-jade-500/20 font-mono text-xs"
+                    className="w-full h-10 pl-9 pr-3 rounded-xl border border-line bg-white text-sm text-ink placeholder:text-sage-400 outline-none transition-all duration-200 focus:border-jade-500 focus:ring-2 focus:ring-jade-500/20 text-xs"
                     required
                   />
                 </div>
@@ -1166,7 +1163,7 @@ export default function RegisterPage() {
                   <div className="w-full border-t border-line" />
                 </div>
                 <div className="relative flex justify-center text-xs">
-                  <span className="bg-white px-2 font-mono text-[10px] uppercase tracking-wider text-sage-500">
+                  <span className="bg-white px-2 text-[10px] font-medium uppercase tracking-wider text-sage-500">
                     o
                   </span>
                 </div>

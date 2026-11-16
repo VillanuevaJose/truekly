@@ -175,7 +175,7 @@ export function DonateModal({
               <CheckCircle2 size={36} />
             </div>
 
-            <span className="inline-block rounded-full bg-jade-100 text-jade-800 px-3 py-1 text-xs font-bold font-mono tracking-wider mb-2">
+            <span className="inline-block rounded-full bg-jade-100 text-jade-800 px-3 py-1 text-xs font-bold tracking-wider mb-2">
               Código de Aporte: {confirmationCode}
             </span>
 

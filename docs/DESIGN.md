@@ -38,6 +38,7 @@ Comunidad activa en Perú (jóvenes profesionales, creativos, estudiantes y empr
 - **Titulares:** `"Newsreader", "Playfair Display", Georgia, serif`
 - **Cuerpo e Interfaz:** `"Plus Jakarta Sans", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif`
 - **Métricas / Precios referenciales:** tabular-nums, sin fuentes mono genéricas en navegación.
+- **Prohibición Total Monospace:** Cero uso de `font-mono` o tipografías monoespaciadas en interfaces, badges, títulos, etiquetas o inputs. Todo texto e interfaz es 100% sans-serif limpia.
 
 ### Espaciado y Radios
 - **Radio de tarjetas y paneles:** `8px` (`rounded-lg`)

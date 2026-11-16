@@ -167,7 +167,7 @@ export function BidModal({
               <CheckCircle2 size={36} />
             </div>
 
-            <span className="inline-block rounded-full bg-amber-100 text-amber-900 px-3 py-1 text-xs font-bold font-mono tracking-wider mb-2">
+            <span className="inline-block rounded-full bg-amber-100 text-amber-900 px-3 py-1 text-xs font-bold tracking-wider mb-2">
               Código de Puja: {confirmationCode}
             </span>
 

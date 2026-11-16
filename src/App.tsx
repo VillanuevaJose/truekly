@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef } from "react";
 import { BrowserRouter, Routes, Route, useNavigate } from "react-router-dom";
 import { AuthProvider } from "./context/AuthContext";
+import { ThemeProvider } from "./context/ThemeContext";
 import Landing from "./pages/Landing";
 import Feed from "./pages/Feed";
 import { PublicationDetail } from "./pages/PublicationDetail";
@@ -177,6 +178,7 @@ function MainView() {
         scrollPositionsRef.current.landing = window.scrollY;
         navigateToFeed();
       }}
+      onSelectProduct={(prod) => handleSelectProduct(prod)}
       onOpenAuth={() => handleOpenAuth("login")}
       onOpenProfile={() => handleOpenProfileFromOrigin("landing")}
     />
@@ -185,20 +187,22 @@ function MainView() {
 
 export function App() {
   return (
-    <AuthProvider>
-      <BrowserRouter>
-        <Routes>
-          <Route path="/" element={<MainView />} />
-          <Route path="/perfil" element={<ProfilePage />} />
-          <Route path="/ingresar" element={<LoginPage />} />
-          <Route path="/registro" element={<RegisterPage />} />
-          {/* Rutas de compatibilidad directa */}
-          <Route path="/login" element={<LoginPage />} />
-          <Route path="/register" element={<RegisterPage />} />
-          <Route path="*" element={<MainView />} />
-        </Routes>
-      </BrowserRouter>
-    </AuthProvider>
+    <ThemeProvider>
+      <AuthProvider>
+        <BrowserRouter>
+          <Routes>
+            <Route path="/" element={<MainView />} />
+            <Route path="/perfil" element={<ProfilePage />} />
+            <Route path="/ingresar" element={<LoginPage />} />
+            <Route path="/registro" element={<RegisterPage />} />
+            {/* Rutas de compatibilidad directa */}
+            <Route path="/login" element={<LoginPage />} />
+            <Route path="/register" element={<RegisterPage />} />
+            <Route path="*" element={<MainView />} />
+          </Routes>
+        </BrowserRouter>
+      </AuthProvider>
+    </ThemeProvider>
   );
 }
 
