@@ -125,7 +125,10 @@ function ProductCard({
 
         <button
           type="button"
-          onClick={() => setSaved((s) => !s)}
+          onClick={(e) => {
+            e.stopPropagation();
+            setSaved((s) => !s);
+          }}
           aria-pressed={saved}
           aria-label={saved ? "Quitar de favoritos" : "Guardar en favoritos"}
           className="absolute right-3 top-3 flex h-8 w-8 items-center justify-center rounded-full bg-white/95 dark:bg-[#181C1A]/95 text-ink-soft dark:text-white/80 shadow-sm transition hover:scale-110 hover:text-jade-500"

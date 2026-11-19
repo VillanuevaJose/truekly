@@ -1,5 +1,5 @@
-import { supabase } from "../lib/supabaseClient";
-import type { Product, Category, Condition } from "../data/mockProducts";
+import { supabase } from "../lib/supabaseClient.ts";
+import type { Product, Category, Condition } from "../data/mockProducts.ts";
 
 const STORAGE_KEY = "truekly_user_publications";
 
@@ -21,7 +21,7 @@ export interface PublicationRow {
   created_at?: string;
 }
 
-function mapRowToProduct(row: PublicationRow): Product {
+export function mapRowToProduct(row: PublicationRow): Product {
   return {
     id: row.id,
     title: row.title,
@@ -90,7 +90,7 @@ export async function fetchPublications(): Promise<Product[]> {
   return localItems;
 }
 
-function buildRowPayload(p: Product, uid: string | null): PublicationRow {
+export function buildRowPayload(p: Product, uid: string | null): PublicationRow {
   return {
     id: p.id,
     user_id: uid,

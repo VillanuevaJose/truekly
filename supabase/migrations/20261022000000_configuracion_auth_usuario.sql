@@ -8,15 +8,12 @@
 -- 3. Crea una "New query" (+), pega todo este código y pulsa "Run".
 -- =============================================================================
 
--- 1. Otorgar permisos de esquema y tablas a anon y authenticated
+-- 1. Otorgar permisos de esquema y tablas con principio de mínimo privilegio
 GRANT USAGE ON SCHEMA public TO anon, authenticated;
-GRANT ALL ON ALL TABLES IN SCHEMA public TO anon, authenticated;
-GRANT ALL ON ALL SEQUENCES IN SCHEMA public TO anon, authenticated;
-GRANT ALL ON ALL ROUTINES IN SCHEMA public TO anon, authenticated;
-
-ALTER DEFAULT PRIVILEGES IN SCHEMA public GRANT ALL ON TABLES TO anon, authenticated;
-ALTER DEFAULT PRIVILEGES IN SCHEMA public GRANT ALL ON SEQUENCES TO anon, authenticated;
-ALTER DEFAULT PRIVILEGES IN SCHEMA public GRANT ALL ON ROUTINES TO anon, authenticated;
+GRANT SELECT ON TABLE public.vista_usuario_publico TO anon, authenticated;
+GRANT SELECT, UPDATE, INSERT ON TABLE public.usuario TO authenticated;
+GRANT ALL ON ALL SEQUENCES IN SCHEMA public TO authenticated;
+GRANT ALL ON ALL ROUTINES IN SCHEMA public TO authenticated;
 
 -- 2. Asegurar columnas de identidad en public.usuario
 ALTER TABLE public.usuario
@@ -153,15 +150,18 @@ DROP POLICY IF EXISTS "usuario_select_propio" ON public.usuario;
 DROP POLICY IF EXISTS "usuario_update_propio" ON public.usuario;
 DROP POLICY IF EXISTS "usuario_insert_propio" ON public.usuario;
 
-CREATE POLICY "usuario_select_perfiles" ON public.usuario
+CREATE POLICY "usuario_select_propio" ON public.usuario
     FOR SELECT 
-    USING (estado_cuenta = 'activo' OR auth.uid() = id);
+    TO authenticated
+    USING (auth.uid() = id);
 
 CREATE POLICY "usuario_update_propio" ON public.usuario
     FOR UPDATE 
+    TO authenticated
     USING (auth.uid() = id) 
     WITH CHECK (auth.uid() = id);
 
 CREATE POLICY "usuario_insert_propio" ON public.usuario
     FOR INSERT 
+    TO authenticated
     WITH CHECK (auth.uid() = id);

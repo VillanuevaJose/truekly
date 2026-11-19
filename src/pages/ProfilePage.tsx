@@ -1,4 +1,5 @@
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
+import { useNavigate } from "react-router-dom";
 import {
   ArrowLeft,
   ShieldCheck,
@@ -14,9 +15,20 @@ import {
   CheckCircle2,
   AlertCircle,
   EyeOff,
+  Check,
+  Loader2,
 } from "lucide-react";
 import { useAuth } from "../context/AuthContext";
 import { PublishModal } from "../components/publish/PublishModal";
+import type { Product } from "../data/mockProducts";
+import { fetchPublications, savePublication } from "../services/publicationService";
+import { maskNameYape, maskEmailAddress } from "../utils/privacy";
+import {
+  fetchUserTrades,
+  confirmTradeHandshake,
+  computeHandshakeStatus,
+  type TradeProposal,
+} from "../services/tradeService";
 
 type ProfilePageProps = {
   onBack?: () => void;
@@ -25,68 +37,37 @@ type ProfilePageProps = {
 
 type ProfileTab = "publicaciones" | "trueques" | "seguridad";
 
-/**
- * Censura estilo Yape en Perú:
- * Muestra primer y segundo nombre, y oculta los apellidos con las primeras letras y asteriscos
- * Ej: "Ladi Jose Villanueva Colonia" -> "Ladi Jose Vi*** Co***"
- */
-function maskNameYape(
-  fullName: string,
-  firstName?: string,
-  secondName?: string,
-  paternalSurname?: string,
-  maternalSurname?: string
-): string {
-  if (firstName && paternalSurname) {
-    const s1 = secondName ? ` ${secondName}` : "";
-    const p1 =
-      paternalSurname.length > 2
-        ? `${paternalSurname.slice(0, 2)}***`
-        : `${paternalSurname}*`;
-    const m1 = maternalSurname
-      ? maternalSurname.length > 2
-        ? ` ${maternalSurname.slice(0, 2)}***`
-        : ` ${maternalSurname}*`
-      : "";
-    return `${firstName}${s1} ${p1}${m1}`.trim();
-  }
-
-  const parts = fullName.trim().split(/\s+/).filter(Boolean);
-  if (parts.length === 0) return "Usuario";
-  if (parts.length === 1) return parts[0];
-  if (parts.length === 2) {
-    const p = parts[1].length > 2 ? `${parts[1].slice(0, 2)}***` : `${parts[1]}*`;
-    return `${parts[0]} ${p}`;
-  }
-  if (parts.length >= 3) {
-    const nombres = parts.slice(0, parts.length - 2).join(" ");
-    const apP = parts[parts.length - 2];
-    const apM = parts[parts.length - 1];
-    const pP = apP.length > 2 ? `${apP.slice(0, 2)}***` : `${apP}*`;
-    const pM = apM.length > 2 ? `${apM.slice(0, 2)}***` : `${apM}*`;
-    return `${nombres} ${pP} ${pM}`;
-  }
-  return fullName;
-}
-
-/**
- * Censura el correo electrónico para proteger la privacidad del usuario
- * Ej: "ramirezpomaerickarturo@gmail.com" -> "ra••••••o@gmail.com"
- */
-function maskEmailAddress(email: string): string {
-  if (!email || !email.includes("@")) return "•••••••@••••.com";
-  const [local, domain] = email.split("@");
-  if (local.length <= 2) return `${local[0]}*@${domain}`;
-  const first = local.slice(0, 2);
-  const last = local.slice(-1);
-  const dots = "•".repeat(Math.min(6, Math.max(3, local.length - 3)));
-  return `${first}${dots}${last}@${domain}`;
-}
-
 export default function ProfilePage({ onBack, onNavigateToFeed }: ProfilePageProps) {
+  const navigate = useNavigate();
   const { user, logout } = useAuth();
   const [activeTab, setActiveTab] = useState<ProfileTab>("publicaciones");
   const [isPublishOpen, setIsPublishOpen] = useState(false);
+  const [userPublications, setUserPublications] = useState<Product[]>([]);
+  const [userTrades, setUserTrades] = useState<TradeProposal[]>([]);
+  const [isConfirmingTrade, setIsConfirmingTrade] = useState<string | null>(null);
+
+  useEffect(() => {
+    let isMounted = true;
+    if (user?.id) {
+      fetchPublications().then((pubs) => {
+        if (!isMounted) return;
+        const myPubs = pubs.filter(
+          (p) =>
+            (p.userId && p.userId === user.id) ||
+            (user.username && p.owner.name === `@${user.username}`)
+        );
+        setUserPublications(myPubs);
+      });
+
+      fetchUserTrades(user.id).then((trades) => {
+        if (!isMounted) return;
+        setUserTrades(trades);
+      });
+    }
+    return () => {
+      isMounted = false;
+    };
+  }, [user?.id, user?.username]);
 
   const initials = useMemo(() => {
     if (!user) return "TK";
@@ -121,13 +102,13 @@ export default function ProfilePage({ onBack, onNavigateToFeed }: ProfilePagePro
     } else if (onNavigateToFeed) {
       onNavigateToFeed();
     } else {
-      window.location.hash = "#feed";
+      navigate("/#feed");
     }
   };
 
   const handleLogout = async () => {
     await logout();
-    window.location.hash = "#inicio";
+    navigate("/#inicio");
   };
 
   if (!user) {
@@ -331,7 +312,7 @@ export default function ProfilePage({ onBack, onNavigateToFeed }: ProfilePagePro
               <Package className="h-4 w-4" aria-hidden="true" />
               <span>Mis Publicaciones</span>
               <span className="rounded-full bg-paper px-2 py-0.5 text-[10px] text-sage-500 border border-line">
-                0
+                {userPublications.length}
               </span>
             </button>
 
@@ -349,6 +330,9 @@ export default function ProfilePage({ onBack, onNavigateToFeed }: ProfilePagePro
             >
               <Repeat className="h-4 w-4" aria-hidden="true" />
               <span>Mis Trueques</span>
+              <span className="rounded-full bg-paper px-2 py-0.5 text-[10px] text-sage-500 border border-line">
+                {userTrades.length}
+              </span>
             </button>
 
             <button
@@ -371,46 +355,177 @@ export default function ProfilePage({ onBack, onNavigateToFeed }: ProfilePagePro
           {/* TAB 1: MIS PUBLICACIONES */}
           {activeTab === "publicaciones" && (
             <div id="panel-publicaciones" role="tabpanel" className="space-y-4">
-              <div className="rounded-2xl border border-line bg-white p-8 text-center">
-                <div className="mx-auto mb-3 flex h-14 w-14 items-center justify-center rounded-2xl bg-jade-50 text-jade-600">
-                  <Package className="h-7 w-7" aria-hidden="true" />
+              {userPublications.length === 0 ? (
+                <div className="rounded-2xl border border-line bg-white p-8 text-center">
+                  <div className="mx-auto mb-3 flex h-14 w-14 items-center justify-center rounded-2xl bg-jade-50 text-jade-600">
+                    <Package className="h-7 w-7" aria-hidden="true" />
+                  </div>
+                  <h3 className="text-base font-semibold text-ink">Aún no tienes objetos publicados</h3>
+                  <p className="mx-auto mt-1 max-w-sm text-xs leading-relaxed text-sage-500">
+                    Publica lo que ya no usas para comenzar a recibir propuestas de trueque de personas en tu ciudad.
+                  </p>
+                  <button
+                    type="button"
+                    onClick={() => setIsPublishOpen(true)}
+                    className="mt-5 inline-flex items-center gap-1.5 rounded-xl bg-jade-600 px-4 py-2 text-xs font-semibold text-white shadow-xs transition hover:bg-jade-700"
+                  >
+                    <Plus className="h-4 w-4" aria-hidden="true" />
+                    <span>Publicar mi primer objeto</span>
+                  </button>
                 </div>
-                <h3 className="text-base font-semibold text-ink">Aún no tienes objetos publicados</h3>
-                <p className="mx-auto mt-1 max-w-sm text-xs leading-relaxed text-sage-500">
-                  Publica lo que ya no usas para comenzar a recibir propuestas de trueque de personas en tu ciudad.
-                </p>
-                <button
-                  type="button"
-                  onClick={() => setIsPublishOpen(true)}
-                  className="mt-5 inline-flex items-center gap-1.5 rounded-xl bg-jade-600 px-4 py-2 text-xs font-semibold text-white shadow-xs transition hover:bg-jade-700"
-                >
-                  <Plus className="h-4 w-4" aria-hidden="true" />
-                  <span>Publicar mi primer objeto</span>
-                </button>
-              </div>
+              ) : (
+                <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
+                  {userPublications.map((pub) => (
+                    <div
+                      key={pub.id}
+                      className="group flex flex-col overflow-hidden rounded-xl border border-line bg-white transition hover:shadow-sm"
+                    >
+                      <div className="relative aspect-4/3 w-full overflow-hidden bg-paper">
+                        <img
+                          src={pub.image}
+                          alt={pub.title}
+                          className="h-full w-full object-cover transition duration-200 group-hover:scale-105"
+                          loading="lazy"
+                        />
+                        <span className="absolute bottom-2 left-2 rounded-full bg-ink/75 px-2 py-0.5 text-[10px] text-paper backdrop-blur-xs">
+                          {pub.zone}
+                        </span>
+                      </div>
+                      <div className="p-3">
+                        <h4 className="text-xs font-semibold text-ink truncate">{pub.title}</h4>
+                        <p className="mt-1 text-[11px] text-sage-500 line-clamp-1">
+                          Busca: <span className="text-ink font-medium">{pub.wantsInReturn}</span>
+                        </p>
+                        <div className="mt-2.5 flex items-center justify-between border-t border-line/60 pt-2">
+                          <span className="inline-flex items-center rounded-full bg-jade-50 px-2 py-0.5 text-[10px] font-medium text-jade-700">
+                            Activa
+                          </span>
+                          <span className="text-[10px] text-sage-400 capitalize">{pub.condition}</span>
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
             </div>
           )}
 
           {/* TAB 2: MIS TRUEQUES */}
           {activeTab === "trueques" && (
             <div id="panel-trueques" role="tabpanel" className="space-y-4">
-              <div className="rounded-2xl border border-line bg-white p-8 text-center">
-                <div className="mx-auto mb-3 flex h-14 w-14 items-center justify-center rounded-2xl bg-amber-50 text-amber-600">
-                  <Repeat className="h-7 w-7" aria-hidden="true" />
+              {userTrades.length === 0 ? (
+                <div className="rounded-2xl border border-line bg-white p-8 text-center">
+                  <div className="mx-auto mb-3 flex h-14 w-14 items-center justify-center rounded-2xl bg-amber-50 text-amber-600">
+                    <Repeat className="h-7 w-7" aria-hidden="true" />
+                  </div>
+                  <h3 className="text-base font-semibold text-ink">Sin intercambios en curso</h3>
+                  <p className="mx-auto mt-1 max-w-sm text-xs leading-relaxed text-sage-500">
+                    Cuando propongas un intercambio o alguien se interese en tus artículos, verás los acuerdos aquí.
+                  </p>
+                  <button
+                    type="button"
+                    onClick={handleBack}
+                    className="mt-5 inline-flex items-center gap-1.5 rounded-xl border border-line bg-white px-4 py-2 text-xs font-semibold text-ink transition hover:bg-paper"
+                  >
+                    <ExternalLink className="h-4 w-4 text-sage-500" aria-hidden="true" />
+                    <span>Explorar publicaciones en el feed</span>
+                  </button>
                 </div>
-                <h3 className="text-base font-semibold text-ink">Sin intercambios en curso</h3>
-                <p className="mx-auto mt-1 max-w-sm text-xs leading-relaxed text-sage-500">
-                  Cuando propongas un intercambio o alguien se interese en tus artículos, verás los acuerdos aquí.
-                </p>
-                <button
-                  type="button"
-                  onClick={handleBack}
-                  className="mt-5 inline-flex items-center gap-1.5 rounded-xl border border-line bg-white px-4 py-2 text-xs font-semibold text-ink transition hover:bg-paper"
-                >
-                  <ExternalLink className="h-4 w-4 text-sage-500" aria-hidden="true" />
-                  <span>Explorar publicaciones en el feed</span>
-                </button>
-              </div>
+              ) : (
+                <div className="space-y-3">
+                  {userTrades.map((trade) => {
+                    const status = computeHandshakeStatus(trade, user?.id);
+                    return (
+                      <div
+                        key={trade.id}
+                        className="rounded-xl border border-line bg-white p-4 transition shadow-xs hover:border-jade-300"
+                      >
+                        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-line pb-3">
+                          <div className="flex items-center gap-2">
+                            <span className="flex h-7 w-7 items-center justify-center rounded-lg bg-jade-50 text-jade-700">
+                              <Repeat className="h-4 w-4" aria-hidden="true" />
+                            </span>
+                            <span className="text-xs font-bold text-ink">
+                              Propuesta de intercambio presencial
+                            </span>
+                          </div>
+                          <span
+                            className={`inline-flex items-center gap-1 rounded-full px-2.5 py-0.5 text-[11px] font-semibold border ${
+                              status.badgeVariant === "completed"
+                                ? "bg-jade-50 text-jade-700 border-jade-200"
+                                : status.badgeVariant === "waiting"
+                                ? "bg-amber-50 text-amber-700 border-amber-200"
+                                : status.badgeVariant === "cancelled"
+                                ? "bg-red-50 text-red-700 border-red-200"
+                                : "bg-sky-50 text-sky-700 border-sky-200"
+                            }`}
+                          >
+                            {status.badgeLabel}
+                          </span>
+                        </div>
+
+                        <div className="mt-3 grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs">
+                          <div className="rounded-lg bg-paper/60 p-2.5 border border-line">
+                            <span className="text-[10px] text-sage-500 font-medium block">
+                              Artículo ofertado:
+                            </span>
+                            <p className="font-semibold text-ink mt-0.5 truncate">
+                              {trade.tituloOfertado}
+                            </p>
+                          </div>
+                          <div className="rounded-lg bg-paper/60 p-2.5 border border-line">
+                            <span className="text-[10px] text-sage-500 font-medium block">
+                              Artículo solicitado:
+                            </span>
+                            <p className="font-semibold text-ink mt-0.5 truncate">
+                              {trade.tituloSolicitado}
+                            </p>
+                          </div>
+                        </div>
+
+                        <div className="mt-3 flex flex-wrap items-center justify-between gap-3 border-t border-line/60 pt-3">
+                          <span className="inline-flex items-center gap-1 text-[11px] text-sage-500">
+                            <MapPin className="h-3.5 w-3.5 text-jade-600" aria-hidden="true" />
+                            <span>Punto seguro: {trade.puntoEncuentro}</span>
+                          </span>
+
+                          {status.canConfirm && user?.id && (
+                            <button
+                              type="button"
+                              disabled={isConfirmingTrade === trade.id}
+                              onClick={async () => {
+                                if (!user?.id) return;
+                                const uid = user.id;
+                                setIsConfirmingTrade(trade.id);
+                                try {
+                                  await confirmTradeHandshake(trade.id, uid);
+                                  const updated = await fetchUserTrades(uid);
+                                  setUserTrades(updated);
+                                } finally {
+                                  setIsConfirmingTrade(null);
+                                }
+                              }}
+                              className="inline-flex items-center gap-1.5 rounded-xl bg-jade-600 px-4 py-2 text-xs font-semibold text-white shadow-xs hover:bg-jade-700 transition disabled:opacity-50"
+                            >
+                              {isConfirmingTrade === trade.id ? (
+                                <>
+                                  <Loader2 className="h-3.5 w-3.5 animate-spin" aria-hidden="true" />
+                                  <span>Confirmando handshake...</span>
+                                </>
+                              ) : (
+                                <>
+                                  <Check className="h-3.5 w-3.5" aria-hidden="true" />
+                                  <span>Confirmar intercambio en persona</span>
+                                </>
+                              )}
+                            </button>
+                          )}
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
             </div>
           )}
 
@@ -513,12 +628,10 @@ export default function ProfilePage({ onBack, onNavigateToFeed }: ProfilePagePro
       <PublishModal
         isOpen={isPublishOpen}
         onClose={() => setIsPublishOpen(false)}
-        onPublishSuccess={() => {
-          if (onNavigateToFeed) {
-            onNavigateToFeed();
-          } else {
-            window.location.hash = "#feed";
-          }
+        onPublishSuccess={async (newProduct) => {
+          const saved = await savePublication(newProduct, user?.id);
+          setUserPublications((prev) => [saved, ...prev.filter((p) => p.id !== saved.id)]);
+          setIsPublishOpen(false);
         }}
       />
     </div>

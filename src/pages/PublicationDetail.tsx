@@ -13,10 +13,12 @@ import {
   Shield,
   ChevronRight,
   Trash2,
+  X,
 } from "lucide-react";
 import { type Product } from "../data/mockProducts";
 import { useAuth } from "../context/AuthContext";
 import { DeleteConfirmModal } from "../components/publish/DeleteConfirmModal";
+import { createTradeProposal } from "../services/tradeService";
 
 interface PublicationDetailProps {
   product: Product;
@@ -42,14 +44,15 @@ export const PublicationDetail: React.FC<PublicationDetailProps> = ({
   const [copiedNotification, setCopiedNotification] = useState<boolean>(false);
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
-
-  const isOwner = Boolean(
-    user &&
-    ((product.userId && product.userId === user.id) ||
-      product.owner.name === `@${user.username}` ||
-      (user.username && product.owner.name.includes(user.username)) ||
-      product.owner.name === user.nombre)
+  const [showTradeModal, setShowTradeModal] = useState(false);
+  const [offeredTitle, setOfferedTitle] = useState("");
+  const [meetingPoint, setMeetingPoint] = useState(
+    product.safePointRecommended || "Plaza de Armas de Chimbote"
   );
+  const [isSubmittingTrade, setIsSubmittingTrade] = useState(false);
+  const [tradeSuccessMsg, setTradeSuccessMsg] = useState<string | null>(null);
+
+  const isOwner = Boolean(user?.id && product.userId && product.userId === user.id);
 
   React.useEffect(() => {
     const newImages = product.gallery && product.gallery.length > 0 ? product.gallery : [product.image];
@@ -330,18 +333,37 @@ export const PublicationDetail: React.FC<PublicationDetailProps> = ({
                     <span>Eliminar mi publicación</span>
                   </button>
                 </div>
-              ) : (
+              ) : !user ? (
                 <div className="mt-5">
                   <button
                     type="button"
                     onClick={() => onOpenAuth("login")}
-                    className="w-full min-h-[48px] flex items-center justify-center gap-2 rounded-xl bg-[#0F6D5F] px-4 py-3 text-sm font-bold text-white shadow-md hover:bg-[#0c574c] active:scale-[0.98] transition-all focus:outline-none focus-visible:ring-2 focus-visible:ring-[#0F6D5F]"
+                    className="w-full min-h-[48px] flex items-center justify-center gap-2 rounded-xl bg-jade-600 px-4 py-3 text-sm font-bold text-white shadow-md hover:bg-jade-700 active:scale-[0.98] transition-all focus:outline-none focus-visible:ring-2 focus-visible:ring-jade-500"
                   >
                     <MessageCircle className="h-4 w-4" />
                     <span>Iniciar sesión para proponer trueque</span>
                   </button>
                   <p className="mt-2 text-center text-[11px] text-[#6B7A72]">
                     Al contactar, aceptas respetar los puntos seguros recomendados.
+                  </p>
+                </div>
+              ) : (
+                <div className="mt-5 space-y-2">
+                  <button
+                    type="button"
+                    onClick={() => setShowTradeModal(true)}
+                    className="w-full min-h-[48px] flex items-center justify-center gap-2 rounded-xl bg-jade-600 px-4 py-3 text-sm font-bold text-white shadow-md hover:bg-jade-700 active:scale-[0.98] transition-all focus:outline-none focus-visible:ring-2 focus-visible:ring-jade-500"
+                  >
+                    <Repeat className="h-4 w-4" />
+                    <span>Proponer trueque presencial</span>
+                  </button>
+                  {tradeSuccessMsg && (
+                    <div className="rounded-xl border border-jade-300 bg-jade-50 p-2.5 text-center text-xs text-jade-800">
+                      {tradeSuccessMsg}
+                    </div>
+                  )}
+                  <p className="mt-2 text-center text-[11px] text-[#6B7A72]">
+                    Intercambio protegido con handshake atómico en punto seguro.
                   </p>
                 </div>
               )}
@@ -404,6 +426,114 @@ export const PublicationDetail: React.FC<PublicationDetailProps> = ({
           }
         }}
       />
+
+      {showTradeModal && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-ink/50 backdrop-blur-xs animate-in fade-in duration-150"
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="trade-modal-title"
+        >
+          <div className="relative w-full max-w-md rounded-2xl border border-line bg-white p-6 shadow-xl">
+            <div className="flex items-center justify-between border-b border-line pb-3">
+              <div className="flex items-center gap-2 text-jade-700">
+                <Repeat className="h-5 w-5" aria-hidden="true" />
+                <h3 id="trade-modal-title" className="text-sm font-bold text-ink">
+                  Proponer trueque presencial
+                </h3>
+              </div>
+              <button
+                type="button"
+                onClick={() => setShowTradeModal(false)}
+                className="rounded-lg p-1 text-sage-400 hover:bg-paper hover:text-ink"
+              >
+                <X className="h-4 w-4" aria-hidden="true" />
+              </button>
+            </div>
+
+            <div className="mt-4 space-y-4">
+              <div>
+                <label className="block text-xs font-semibold text-ink mb-1">
+                  Artículo que deseas recibir
+                </label>
+                <p className="text-xs text-sage-600 bg-paper p-2.5 rounded-xl border border-line truncate">
+                  {product.title}
+                </p>
+              </div>
+
+              <div>
+                <label htmlFor="offered-title" className="block text-xs font-semibold text-ink mb-1">
+                  ¿Qué artículo ofreces a cambio?
+                </label>
+                <input
+                  id="offered-title"
+                  type="text"
+                  placeholder="Ej: Teclado Mecánico Redragon K552"
+                  value={offeredTitle}
+                  onChange={(e) => setOfferedTitle(e.target.value)}
+                  className="w-full rounded-xl border border-line bg-white px-3 py-2 text-xs text-ink placeholder:text-sage-400 focus:outline-none focus:border-jade-500 focus:ring-1 focus:ring-jade-500"
+                />
+              </div>
+
+              <div>
+                <label htmlFor="meeting-point" className="block text-xs font-semibold text-ink mb-1">
+                  Punto de encuentro seguro en Chimbote
+                </label>
+                <input
+                  id="meeting-point"
+                  type="text"
+                  value={meetingPoint}
+                  onChange={(e) => setMeetingPoint(e.target.value)}
+                  className="w-full rounded-xl border border-line bg-white px-3 py-2 text-xs text-ink placeholder:text-sage-400 focus:outline-none focus:border-jade-500 focus:ring-1 focus:ring-jade-500"
+                />
+              </div>
+
+              <div className="rounded-xl border border-amber-200 bg-amber-50/60 p-3 text-[11px] text-amber-900 leading-relaxed">
+                El trueque requiere doble confirmación presencial (handshake atómico). Nadie intercambia sin validar el estado del objeto en persona.
+              </div>
+            </div>
+
+            <div className="mt-5 flex items-center justify-end gap-2 border-t border-line pt-3">
+              <button
+                type="button"
+                onClick={() => setShowTradeModal(false)}
+                className="rounded-xl border border-line px-4 py-2 text-xs font-semibold text-sage-600 hover:bg-paper"
+              >
+                Cancelar
+              </button>
+              <button
+                type="button"
+                disabled={!offeredTitle.trim() || isSubmittingTrade || !user?.id}
+                onClick={async () => {
+                  if (!user?.id || !offeredTitle.trim()) return;
+                  setIsSubmittingTrade(true);
+                  try {
+                    await createTradeProposal({
+                      proponenteId: user.id,
+                      receptorId: product.userId || null,
+                      publicacionOfertadaId: `prop-${Date.now()}`,
+                      publicacionSolicitadaId: product.id,
+                      tituloOfertado: offeredTitle.trim(),
+                      tituloSolicitado: product.title,
+                      imagenOfertada: user.fotoPerfil || product.image || "",
+                      imagenSolicitada: product.image || "",
+                      puntoEncuentro: meetingPoint.trim(),
+                    });
+                    setTradeSuccessMsg("¡Propuesta enviada! Puedes seguir el handshake en tu Perfil.");
+                    setShowTradeModal(false);
+                    setOfferedTitle("");
+                  } finally {
+                    setIsSubmittingTrade(false);
+                  }
+                }}
+                className="rounded-xl bg-jade-600 px-4 py-2 text-xs font-semibold text-white shadow-xs hover:bg-jade-700 disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                {isSubmittingTrade ? "Enviando..." : "Enviar propuesta"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

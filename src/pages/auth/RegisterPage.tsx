@@ -33,22 +33,8 @@ import {
   IdCard,
 } from "lucide-react";
 
-function sendBreadcrumb(step: string, data?: any) {
-  const payload = { step, data, time: new Date().toISOString() };
-  try {
-    const list = JSON.parse(localStorage.getItem("truekly_breadcrumbs") || "[]");
-    list.push(payload);
-    localStorage.setItem("truekly_breadcrumbs", JSON.stringify(list.slice(-50)));
-  } catch {}
-  try {
-    fetch("/api/debug-log", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(payload),
-      keepalive: true,
-    }).catch(() => {});
-  } catch {}
-}
+// Telemetría deshabilitada para cumplimiento de Ley N° 29733 (cero fuga de PII/DNI en dev y logs)
+function sendBreadcrumb(_step: string, _data?: unknown) {}
 
 export default function RegisterPage() {
   const navigate = useNavigate();
@@ -122,6 +108,7 @@ export default function RegisterPage() {
 
   // Heartbeat y monitoreo de diagnóstico
   useEffect(() => {
+    try { localStorage.removeItem("truekly_breadcrumbs"); } catch {}
     sendBreadcrumb("PAGE_MOUNTED", { step: currentStep });
     const onFocus = (e: FocusEvent) => {
       const el = e.target as HTMLElement;

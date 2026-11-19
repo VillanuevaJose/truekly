@@ -2,33 +2,6 @@ import { defineConfig, loadEnv, type Plugin } from 'vite'
 import react from '@vitejs/plugin-react'
 import tailwindcss from '@tailwindcss/vite'
 import path from 'node:path'
-import fs from 'node:fs'
-
-function debugLogPlugin(): Plugin {
-  return {
-    name: 'debug-log-middleware',
-    configureServer(server) {
-      server.middlewares.use((req, res, next) => {
-        if (req.url === '/api/debug-log' && req.method === 'POST') {
-          let body = '';
-          req.on('data', chunk => { body += chunk; });
-          req.on('end', () => {
-            const line = `[${new Date().toISOString()}] ${body}\n`;
-            try {
-              fs.appendFileSync(path.resolve(process.cwd(), 'debug_breadcrumbs.log'), line);
-            } catch {}
-            console.log(`[BREADCRUMB] ${body}`);
-            res.statusCode = 200;
-            res.setHeader('Content-Type', 'application/json');
-            res.end(JSON.stringify({ ok: true }));
-          });
-          return;
-        }
-        next();
-      });
-    },
-  };
-}
 
 function dniApiPlugin(): Plugin {
   return {
@@ -74,7 +47,6 @@ export default defineConfig(({ mode }) => {
       react(),
       tailwindcss(),
       dniApiPlugin(),
-      debugLogPlugin(),
     ],
   };
 });

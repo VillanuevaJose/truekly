@@ -1,15 +1,26 @@
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, lazy, Suspense } from "react";
 import { BrowserRouter, Routes, Route, useNavigate } from "react-router-dom";
 import { AuthProvider } from "./context/AuthContext";
 import { ThemeProvider } from "./context/ThemeContext";
-import Landing from "./pages/Landing";
-import Feed from "./pages/Feed";
-import { PublicationDetail } from "./pages/PublicationDetail";
-import LoginPage from "./pages/auth/LoginPage";
-import RegisterPage from "./pages/auth/RegisterPage";
-import ProfilePage from "./pages/ProfilePage";
 import { products, type Product } from "./data/mockProducts";
 import { fetchPublications, removePublication } from "./services/publicationService";
+
+const Landing = lazy(() => import("./pages/Landing"));
+const Feed = lazy(() => import("./pages/Feed"));
+const PublicationDetail = lazy(() =>
+  import("./pages/PublicationDetail").then((m) => ({ default: m.PublicationDetail }))
+);
+const LoginPage = lazy(() => import("./pages/auth/LoginPage"));
+const RegisterPage = lazy(() => import("./pages/auth/RegisterPage"));
+const ProfilePage = lazy(() => import("./pages/ProfilePage"));
+
+function PageLoadingFallback() {
+  return (
+    <div className="min-h-screen flex items-center justify-center bg-paper text-ink">
+      <div className="h-6 w-6 animate-spin rounded-full border-2 border-jade-600 border-t-transparent" />
+    </div>
+  );
+}
 
 /**
  * Vista Principal unificada (Landing / Feed / Detalle Producto / Perfil)
@@ -190,16 +201,18 @@ export function App() {
     <ThemeProvider>
       <AuthProvider>
         <BrowserRouter>
-          <Routes>
-            <Route path="/" element={<MainView />} />
-            <Route path="/perfil" element={<ProfilePage />} />
-            <Route path="/ingresar" element={<LoginPage />} />
-            <Route path="/registro" element={<RegisterPage />} />
-            {/* Rutas de compatibilidad directa */}
-            <Route path="/login" element={<LoginPage />} />
-            <Route path="/register" element={<RegisterPage />} />
-            <Route path="*" element={<MainView />} />
-          </Routes>
+          <Suspense fallback={<PageLoadingFallback />}>
+            <Routes>
+              <Route path="/" element={<MainView />} />
+              <Route path="/perfil" element={<ProfilePage />} />
+              <Route path="/ingresar" element={<LoginPage />} />
+              <Route path="/registro" element={<RegisterPage />} />
+              {/* Rutas de compatibilidad directa */}
+              <Route path="/login" element={<LoginPage />} />
+              <Route path="/register" element={<RegisterPage />} />
+              <Route path="*" element={<MainView />} />
+            </Routes>
+          </Suspense>
         </BrowserRouter>
       </AuthProvider>
     </ThemeProvider>
