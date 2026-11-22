@@ -17,6 +17,7 @@ import {
   EyeOff,
   Check,
   Loader2,
+  MessageCircle,
 } from "lucide-react";
 import { useAuth } from "../context/AuthContext";
 import { PublishModal } from "../components/publish/PublishModal";
@@ -29,6 +30,7 @@ import {
   computeHandshakeStatus,
   type TradeProposal,
 } from "../services/tradeService";
+import { DirectTradeChat } from "../components/chat/DirectTradeChat";
 
 type ProfilePageProps = {
   onBack?: () => void;
@@ -45,6 +47,7 @@ export default function ProfilePage({ onBack, onNavigateToFeed }: ProfilePagePro
   const [userPublications, setUserPublications] = useState<Product[]>([]);
   const [userTrades, setUserTrades] = useState<TradeProposal[]>([]);
   const [isConfirmingTrade, setIsConfirmingTrade] = useState<string | null>(null);
+  const [chatTrade, setChatTrade] = useState<TradeProposal | null>(null);
 
   useEffect(() => {
     let isMounted = true;
@@ -489,37 +492,48 @@ export default function ProfilePage({ onBack, onNavigateToFeed }: ProfilePagePro
                             <span>Punto seguro: {trade.puntoEncuentro}</span>
                           </span>
 
-                          {status.canConfirm && user?.id && (
+                          <div className="flex items-center gap-2">
                             <button
                               type="button"
-                              disabled={isConfirmingTrade === trade.id}
-                              onClick={async () => {
-                                if (!user?.id) return;
-                                const uid = user.id;
-                                setIsConfirmingTrade(trade.id);
-                                try {
-                                  await confirmTradeHandshake(trade.id, uid);
-                                  const updated = await fetchUserTrades(uid);
-                                  setUserTrades(updated);
-                                } finally {
-                                  setIsConfirmingTrade(null);
-                                }
-                              }}
-                              className="inline-flex items-center gap-1.5 rounded-xl bg-jade-600 px-4 py-2 text-xs font-semibold text-white shadow-xs hover:bg-jade-700 transition disabled:opacity-50"
+                              onClick={() => setChatTrade(trade)}
+                              className="inline-flex items-center gap-1.5 rounded-xl border border-line bg-paper px-3 py-2 text-xs font-semibold text-ink hover:bg-white hover:border-jade-300 transition"
                             >
-                              {isConfirmingTrade === trade.id ? (
-                                <>
-                                  <Loader2 className="h-3.5 w-3.5 animate-spin" aria-hidden="true" />
-                                  <span>Confirmando handshake...</span>
-                                </>
-                              ) : (
-                                <>
-                                  <Check className="h-3.5 w-3.5" aria-hidden="true" />
-                                  <span>Confirmar intercambio en persona</span>
-                                </>
-                              )}
+                              <MessageCircle className="h-3.5 w-3.5 text-jade-700" />
+                              <span>Abrir chat</span>
                             </button>
-                          )}
+
+                            {status.canConfirm && user?.id && (
+                              <button
+                                type="button"
+                                disabled={isConfirmingTrade === trade.id}
+                                onClick={async () => {
+                                  if (!user?.id) return;
+                                  const uid = user.id;
+                                  setIsConfirmingTrade(trade.id);
+                                  try {
+                                    await confirmTradeHandshake(trade.id, uid);
+                                    const updated = await fetchUserTrades(uid);
+                                    setUserTrades(updated);
+                                  } finally {
+                                    setIsConfirmingTrade(null);
+                                  }
+                                }}
+                                className="inline-flex items-center gap-1.5 rounded-xl bg-jade-600 px-4 py-2 text-xs font-semibold text-white shadow-xs hover:bg-jade-700 transition disabled:opacity-50"
+                              >
+                                {isConfirmingTrade === trade.id ? (
+                                  <>
+                                    <Loader2 className="h-3.5 w-3.5 animate-spin" aria-hidden="true" />
+                                    <span>Confirmando handshake...</span>
+                                  </>
+                                ) : (
+                                  <>
+                                    <Check className="h-3.5 w-3.5" aria-hidden="true" />
+                                    <span>Confirmar intercambio en persona</span>
+                                  </>
+                                )}
+                              </button>
+                            )}
+                          </div>
                         </div>
                       </div>
                     );
@@ -634,6 +648,41 @@ export default function ProfilePage({ onBack, onNavigateToFeed }: ProfilePagePro
           setIsPublishOpen(false);
         }}
       />
+
+      {chatTrade && (
+        <DirectTradeChat
+          isOpen={Boolean(chatTrade)}
+          onClose={() => setChatTrade(null)}
+          product={{
+            id: chatTrade.publicacionSolicitadaId,
+            title: chatTrade.tituloSolicitado,
+            category: "Otros",
+            condition: "Buen estado",
+            zone: "Chimbote Centro",
+            wantsInReturn: chatTrade.tituloOfertado,
+            image: chatTrade.imagenSolicitada || chatTrade.imagenOfertada || "https://images.unsplash.com/photo-1526170375885-4d8ecf77b99f?w=400&auto=format&fit=crop&q=80",
+            rating: 5.0,
+            exchangesCount: 1,
+            userId: chatTrade.receptorId || undefined,
+            owner: {
+              name: chatTrade.proponenteId === user?.id ? "Contraparte de trueque" : "Proponente",
+              avatar: chatTrade.imagenOfertada || "https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=100&auto=format&fit=crop&q=80",
+              memberSince: "Enero 2025",
+            },
+          }}
+          currentUserId={user?.id}
+          currentUserName={user?.nombre || user?.username}
+          activeTrade={chatTrade}
+          onConfirmTrade={async (tradeId: string) => {
+            if (!user?.id) return;
+            await confirmTradeHandshake(tradeId, user.id);
+            const updated = await fetchUserTrades(user.id);
+            setUserTrades(updated);
+            const updatedItem = updated.find((t) => t.id === tradeId) || null;
+            setChatTrade(updatedItem);
+          }}
+        />
+      )}
     </div>
   );
 }

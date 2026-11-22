@@ -18,7 +18,13 @@ import {
 import { type Product } from "../data/mockProducts";
 import { useAuth } from "../context/AuthContext";
 import { DeleteConfirmModal } from "../components/publish/DeleteConfirmModal";
-import { createTradeProposal } from "../services/tradeService";
+import {
+  createTradeProposal,
+  fetchUserTrades,
+  confirmTradeHandshake,
+  type TradeProposal,
+} from "../services/tradeService";
+import { DirectTradeChat } from "../components/chat/DirectTradeChat";
 
 interface PublicationDetailProps {
   product: Product;
@@ -51,6 +57,8 @@ export const PublicationDetail: React.FC<PublicationDetailProps> = ({
   );
   const [isSubmittingTrade, setIsSubmittingTrade] = useState(false);
   const [tradeSuccessMsg, setTradeSuccessMsg] = useState<string | null>(null);
+  const [showDirectChat, setShowDirectChat] = useState(false);
+  const [activeTrade, setActiveTrade] = useState<TradeProposal | null>(null);
 
   const isOwner = Boolean(user?.id && product.userId && product.userId === user.id);
 
@@ -58,6 +66,20 @@ export const PublicationDetail: React.FC<PublicationDetailProps> = ({
     const newImages = product.gallery && product.gallery.length > 0 ? product.gallery : [product.image];
     setSelectedImage(newImages[0]);
   }, [product]);
+
+  React.useEffect(() => {
+    if (!user?.id) return;
+    fetchUserTrades(user.id).then((trades) => {
+      const match = trades.find(
+        (t) =>
+          t.publicacionSolicitadaId === product.id ||
+          t.publicacionOfertadaId === product.id
+      );
+      if (match) {
+        setActiveTrade(match);
+      }
+    });
+  }, [product.id, user?.id]);
 
   const handleShare = () => {
     if (navigator.clipboard) {
@@ -326,6 +348,15 @@ export const PublicationDetail: React.FC<PublicationDetailProps> = ({
 
                   <button
                     type="button"
+                    onClick={() => setShowDirectChat(true)}
+                    className="w-full min-h-[44px] flex items-center justify-center gap-2 rounded-xl bg-jade-600 px-4 py-2.5 text-xs font-bold text-white shadow-xs hover:bg-jade-700 active:scale-[0.98] transition-all focus-visible:outline-2 focus-visible:outline-jade-500"
+                  >
+                    <MessageCircle className="h-4 w-4" />
+                    <span>Ver mensajes de la publicación</span>
+                  </button>
+
+                  <button
+                    type="button"
                     onClick={() => setShowDeleteModal(true)}
                     className="w-full min-h-[44px] flex items-center justify-center gap-2 rounded-xl border border-red-200 bg-red-50/70 px-4 py-2.5 text-xs font-bold text-red-600 shadow-2xs hover:bg-red-100 hover:border-red-300 active:scale-[0.98] transition-all focus-visible:outline-2 focus-visible:outline-red-500"
                   >
@@ -341,22 +372,32 @@ export const PublicationDetail: React.FC<PublicationDetailProps> = ({
                     className="w-full min-h-[48px] flex items-center justify-center gap-2 rounded-xl bg-jade-600 px-4 py-3 text-sm font-bold text-white shadow-md hover:bg-jade-700 active:scale-[0.98] transition-all focus:outline-none focus-visible:ring-2 focus-visible:ring-jade-500"
                   >
                     <MessageCircle className="h-4 w-4" />
-                    <span>Iniciar sesión para proponer trueque</span>
+                    <span>Iniciar sesión para chatear o proponer trueque</span>
                   </button>
                   <p className="mt-2 text-center text-[11px] text-[#6B7A72]">
                     Al contactar, aceptas respetar los puntos seguros recomendados.
                   </p>
                 </div>
               ) : (
-                <div className="mt-5 space-y-2">
+                <div className="mt-5 space-y-2.5">
+                  <button
+                    type="button"
+                    onClick={() => setShowDirectChat(true)}
+                    className="w-full min-h-[48px] flex items-center justify-center gap-2 rounded-xl bg-jade-600 px-4 py-3 text-sm font-bold text-white shadow-md hover:bg-jade-700 active:scale-[0.98] transition-all focus:outline-none focus-visible:ring-2 focus-visible:ring-jade-500"
+                  >
+                    <MessageCircle className="h-4 w-4" />
+                    <span>Chatear con el anunciante</span>
+                  </button>
+
                   <button
                     type="button"
                     onClick={() => setShowTradeModal(true)}
-                    className="w-full min-h-[48px] flex items-center justify-center gap-2 rounded-xl bg-jade-600 px-4 py-3 text-sm font-bold text-white shadow-md hover:bg-jade-700 active:scale-[0.98] transition-all focus:outline-none focus-visible:ring-2 focus-visible:ring-jade-500"
+                    className="w-full min-h-[44px] flex items-center justify-center gap-2 rounded-xl border border-jade-600/30 bg-jade-50/60 px-4 py-2.5 text-xs font-bold text-jade-800 shadow-2xs hover:bg-jade-100 active:scale-[0.98] transition-all focus:outline-none focus-visible:ring-2 focus-visible:ring-jade-500"
                   >
-                    <Repeat className="h-4 w-4" />
+                    <Repeat className="h-4 w-4 text-jade-700" />
                     <span>Proponer trueque presencial</span>
                   </button>
+
                   {tradeSuccessMsg && (
                     <div className="rounded-xl border border-jade-300 bg-jade-50 p-2.5 text-center text-xs text-jade-800">
                       {tradeSuccessMsg}
@@ -533,6 +574,31 @@ export const PublicationDetail: React.FC<PublicationDetailProps> = ({
             </div>
           </div>
         </div>
+      )}
+
+      {showDirectChat && (
+        <DirectTradeChat
+          isOpen={showDirectChat}
+          onClose={() => setShowDirectChat(false)}
+          product={product}
+          currentUserId={user?.id}
+          currentUserName={user?.nombre || user?.username}
+          activeTrade={activeTrade}
+          onOpenTradeModal={() => {
+            setShowDirectChat(false);
+            setShowTradeModal(true);
+          }}
+          onConfirmTrade={async (tradeId: string) => {
+            if (!user?.id) return;
+            const res = await confirmTradeHandshake(tradeId, user.id);
+            if (res.success) {
+              setTradeSuccessMsg(res.mensaje);
+              setActiveTrade((prev) =>
+                prev ? { ...prev, estado: res.estado } : null
+              );
+            }
+          }}
+        />
       )}
     </div>
   );
