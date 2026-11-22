@@ -13,6 +13,7 @@ const PublicationDetail = lazy(() =>
 const LoginPage = lazy(() => import("./pages/auth/LoginPage"));
 const RegisterPage = lazy(() => import("./pages/auth/RegisterPage"));
 const ProfilePage = lazy(() => import("./pages/ProfilePage"));
+const MessagesPage = lazy(() => import("./pages/MessagesPage"));
 
 function PageLoadingFallback() {
   return (
@@ -29,14 +30,26 @@ function PageLoadingFallback() {
 function MainView() {
   const navigate = useNavigate();
 
-  const [currentView, setCurrentView] = useState<"landing" | "feed" | "product" | "profile">(() => {
+  const [currentView, setCurrentView] = useState<
+    "landing" | "feed" | "product" | "profile" | "messages"
+  >(() => {
     if (window.location.hash === "#perfil") {
       return "profile";
+    }
+    if (window.location.hash.startsWith("#mensajes")) {
+      return "messages";
     }
     if (window.location.hash.startsWith("#producto/")) {
       return "product";
     }
     return window.location.hash === "#feed" ? "feed" : "landing";
+  });
+
+  const [messagesPubId, setMessagesPubId] = useState<string | null>(() => {
+    if (window.location.hash.startsWith("#mensajes/")) {
+      return window.location.hash.replace("#mensajes/", "");
+    }
+    return null;
   });
 
   const previousViewRef = useRef<"landing" | "feed">("landing");
@@ -75,6 +88,14 @@ function MainView() {
       }
       if (hash === "#perfil") {
         setCurrentView("profile");
+        return;
+      }
+      if (hash.startsWith("#mensajes")) {
+        const pId = hash.startsWith("#mensajes/")
+          ? hash.replace("#mensajes/", "")
+          : null;
+        setMessagesPubId(pId);
+        setCurrentView("messages");
         return;
       }
       if (hash === "#feed") {
@@ -151,11 +172,26 @@ function MainView() {
         onBack={handleBackToOrigin}
         onSelectProduct={handleSelectProduct}
         onOpenAuth={handleOpenAuth}
+        onOpenChat={(pubId) => {
+          setMessagesPubId(pubId);
+          window.location.hash = `#mensajes/${pubId}`;
+          setCurrentView("messages");
+        }}
         onDeleteProduct={async (id) => {
           await removePublication(id);
           setSelectedProduct(null);
           handleBackToOrigin();
         }}
+      />
+    );
+  }
+
+  if (currentView === "messages") {
+    return (
+      <MessagesPage
+        onBack={handleBackToOrigin}
+        initialPublicationId={messagesPubId}
+        onSelectProduct={handleSelectProduct}
       />
     );
   }
@@ -179,6 +215,11 @@ function MainView() {
         onOpenAuth={(mode) => handleOpenAuth(mode || "login")}
         onSelectProduct={handleSelectProduct}
         onOpenProfile={() => handleOpenProfileFromOrigin("feed")}
+        onOpenMessages={() => {
+          setMessagesPubId(null);
+          window.location.hash = "#mensajes";
+          setCurrentView("messages");
+        }}
       />
     );
   }
@@ -205,6 +246,7 @@ export function App() {
             <Routes>
               <Route path="/" element={<MainView />} />
               <Route path="/perfil" element={<ProfilePage />} />
+              <Route path="/mensajes" element={<MessagesPage onBack={() => { window.location.hash = "#feed"; }} />} />
               <Route path="/ingresar" element={<LoginPage />} />
               <Route path="/registro" element={<RegisterPage />} />
               {/* Rutas de compatibilidad directa */}

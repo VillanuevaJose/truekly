@@ -18,13 +18,7 @@ import {
 import { type Product } from "../data/mockProducts";
 import { useAuth } from "../context/AuthContext";
 import { DeleteConfirmModal } from "../components/publish/DeleteConfirmModal";
-import {
-  createTradeProposal,
-  fetchUserTrades,
-  confirmTradeHandshake,
-  type TradeProposal,
-} from "../services/tradeService";
-import { DirectTradeChat } from "../components/chat/DirectTradeChat";
+import { createTradeProposal } from "../services/tradeService";
 
 interface PublicationDetailProps {
   product: Product;
@@ -33,6 +27,7 @@ interface PublicationDetailProps {
   onSelectProduct: (p: Product) => void;
   onOpenAuth: (mode?: "login" | "register") => void;
   onDeleteProduct?: (id: string) => Promise<void> | void;
+  onOpenChat?: (pubId: string) => void;
 }
 
 export const PublicationDetail: React.FC<PublicationDetailProps> = ({
@@ -42,6 +37,7 @@ export const PublicationDetail: React.FC<PublicationDetailProps> = ({
   onSelectProduct,
   onOpenAuth,
   onDeleteProduct,
+  onOpenChat,
 }) => {
   const { user } = useAuth();
   const images = product.gallery && product.gallery.length > 0 ? product.gallery : [product.image];
@@ -57,8 +53,14 @@ export const PublicationDetail: React.FC<PublicationDetailProps> = ({
   );
   const [isSubmittingTrade, setIsSubmittingTrade] = useState(false);
   const [tradeSuccessMsg, setTradeSuccessMsg] = useState<string | null>(null);
-  const [showDirectChat, setShowDirectChat] = useState(false);
-  const [activeTrade, setActiveTrade] = useState<TradeProposal | null>(null);
+
+  const handleNavigateToChat = () => {
+    if (onOpenChat) {
+      onOpenChat(product.id);
+    } else {
+      window.location.hash = `#mensajes/${product.id}`;
+    }
+  };
 
   const isOwner = Boolean(user?.id && product.userId && product.userId === user.id);
 
@@ -66,20 +68,6 @@ export const PublicationDetail: React.FC<PublicationDetailProps> = ({
     const newImages = product.gallery && product.gallery.length > 0 ? product.gallery : [product.image];
     setSelectedImage(newImages[0]);
   }, [product]);
-
-  React.useEffect(() => {
-    if (!user?.id) return;
-    fetchUserTrades(user.id).then((trades) => {
-      const match = trades.find(
-        (t) =>
-          t.publicacionSolicitadaId === product.id ||
-          t.publicacionOfertadaId === product.id
-      );
-      if (match) {
-        setActiveTrade(match);
-      }
-    });
-  }, [product.id, user?.id]);
 
   const handleShare = () => {
     if (navigator.clipboard) {
@@ -348,7 +336,7 @@ export const PublicationDetail: React.FC<PublicationDetailProps> = ({
 
                   <button
                     type="button"
-                    onClick={() => setShowDirectChat(true)}
+                    onClick={handleNavigateToChat}
                     className="w-full min-h-[44px] flex items-center justify-center gap-2 rounded-xl bg-jade-600 px-4 py-2.5 text-xs font-bold text-white shadow-xs hover:bg-jade-700 active:scale-[0.98] transition-all focus-visible:outline-2 focus-visible:outline-jade-500"
                   >
                     <MessageCircle className="h-4 w-4" />
@@ -382,7 +370,7 @@ export const PublicationDetail: React.FC<PublicationDetailProps> = ({
                 <div className="mt-5 space-y-2.5">
                   <button
                     type="button"
-                    onClick={() => setShowDirectChat(true)}
+                    onClick={handleNavigateToChat}
                     className="w-full min-h-[48px] flex items-center justify-center gap-2 rounded-xl bg-jade-600 px-4 py-3 text-sm font-bold text-white shadow-md hover:bg-jade-700 active:scale-[0.98] transition-all focus:outline-none focus-visible:ring-2 focus-visible:ring-jade-500"
                   >
                     <MessageCircle className="h-4 w-4" />
@@ -574,31 +562,6 @@ export const PublicationDetail: React.FC<PublicationDetailProps> = ({
             </div>
           </div>
         </div>
-      )}
-
-      {showDirectChat && (
-        <DirectTradeChat
-          isOpen={showDirectChat}
-          onClose={() => setShowDirectChat(false)}
-          product={product}
-          currentUserId={user?.id}
-          currentUserName={user?.nombre || user?.username}
-          activeTrade={activeTrade}
-          onOpenTradeModal={() => {
-            setShowDirectChat(false);
-            setShowTradeModal(true);
-          }}
-          onConfirmTrade={async (tradeId: string) => {
-            if (!user?.id) return;
-            const res = await confirmTradeHandshake(tradeId, user.id);
-            if (res.success) {
-              setTradeSuccessMsg(res.mensaje);
-              setActiveTrade((prev) =>
-                prev ? { ...prev, estado: res.estado } : null
-              );
-            }
-          }}
-        />
       )}
     </div>
   );

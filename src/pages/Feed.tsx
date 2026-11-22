@@ -28,6 +28,7 @@ import {
   Sun,
   Moon,
   X,
+  MessageCircle,
 } from "lucide-react";
 import { useAuth } from "../context/AuthContext";
 import { useTheme } from "../context/ThemeContext";
@@ -62,6 +63,7 @@ type FeedProps = {
   onOpenAuth?: (mode?: "login" | "register") => void;
   onSelectProduct?: (product: Product) => void;
   onOpenProfile?: () => void;
+  onOpenMessages?: () => void;
 };
 
 type FeedSection = "trueques" | "comunidades" | "subastas" | "causas";
@@ -197,6 +199,7 @@ export default function Feed({
   onOpenAuth,
   onSelectProduct,
   onOpenProfile,
+  onOpenMessages,
 }: FeedProps) {
   const { user, logout } = useAuth();
   const { isDark, toggleTheme } = useTheme();
@@ -996,6 +999,20 @@ export default function Feed({
             {/* Accesos rápidos / Estado de autenticación */}
             {user ? (
               <div className="flex shrink-0 items-center gap-2 sm:gap-3">
+                {/* Acceso directo a Mensajes de Trueque */}
+                <button
+                  type="button"
+                  onClick={() => {
+                    if (onOpenMessages) onOpenMessages();
+                    else window.location.hash = "#mensajes";
+                  }}
+                  aria-label="Ver mis mensajes de trueque"
+                  title="Mensajes de trueque"
+                  className="flex h-[40px] w-[40px] shrink-0 items-center justify-center rounded-full border border-line bg-paper dark:bg-white/10 text-ink dark:text-white transition-transform duration-150 hover:scale-105 active:scale-95 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-jade-500"
+                >
+                  <MessageCircle size={19} className="text-jade-700 dark:text-jade-400" />
+                </button>
+
                 {/* Botón Publicar (circular 44px, fondo naranja, ícono verde oscuro) */}
                 <button
                   type="button"
@@ -1060,6 +1077,20 @@ export default function Feed({
                       >
                         <User size={15} className="text-sage-500 dark:text-white/60" />
                         <span>Mi perfil</span>
+                      </button>
+
+                      <button
+                        type="button"
+                        role="menuitem"
+                        onClick={() => {
+                          setIsMenuOpen(false);
+                          if (onOpenMessages) onOpenMessages();
+                          else window.location.hash = "#mensajes";
+                        }}
+                        className="flex w-full items-center gap-2.5 rounded-xl px-3 py-2 text-xs font-medium text-ink dark:text-white/90 transition hover:bg-paper dark:hover:bg-white/10 focus-visible:outline-2 focus-visible:outline-jade-500"
+                      >
+                        <MessageCircle size={15} className="text-sage-500 dark:text-white/60" />
+                        <span>Mis mensajes</span>
                       </button>
 
                       <button

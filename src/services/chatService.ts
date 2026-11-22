@@ -19,8 +19,34 @@ export interface SendMessageDTO {
   contenido: string;
 }
 
+export interface ConversationSummary {
+  publicacionId: string;
+  tituloPublicacion: string;
+  imagenPublicacion: string;
+  interlocutorId: string;
+  interlocutorNombre: string;
+  interlocutorAvatar?: string;
+  ultimoMensaje: string;
+  ultimaFecha: string;
+  noLeidos: number;
+}
+
 const STORAGE_KEY = "truekly_trade_chat_messages";
 let memoryStorage: TradeChatMessage[] = [];
+
+/**
+ * Generador seguro de UUID v4 estándar compatible con PostgreSQL y navegadores
+ */
+export function generateUUID(): string {
+  if (typeof crypto !== "undefined" && typeof crypto.randomUUID === "function") {
+    return crypto.randomUUID();
+  }
+  return "xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx".replace(/[xy]/g, (c) => {
+    const r = (Math.random() * 16) | 0;
+    const v = c === "x" ? r : (r & 0x3) | 0x8;
+    return v.toString(16);
+  });
+}
 
 /**
  * Valida el contenido de un mensaje antes de su transmisión
@@ -91,7 +117,7 @@ function saveLocalMessages(messages: TradeChatMessage[]): void {
 }
 
 /**
- * Envía un mensaje y sincroniza en local y remoto
+ * Envía un mensaje con UUID válido a Supabase y caché local
  */
 export async function sendChatMessage(dto: SendMessageDTO): Promise<TradeChatMessage> {
   const validation = validateMessageContent(dto.contenido);
@@ -100,8 +126,10 @@ export async function sendChatMessage(dto: SendMessageDTO): Promise<TradeChatMes
   }
 
   const cleanContent = dto.contenido.trim();
+  const validId = generateUUID();
+
   const newMessage: TradeChatMessage = {
-    id: `msg-${Date.now()}-${Math.random().toString(36).substring(2, 7)}`,
+    id: validId,
     publicacionId: dto.publicacionId,
     emisorId: dto.emisorId,
     emisorNombre: dto.emisorNombre || "Usuario",
@@ -122,15 +150,15 @@ export async function sendChatMessage(dto: SendMessageDTO): Promise<TradeChatMes
     );
   }
 
-  // Persistencia en Supabase
+  // Persistir en Supabase con UUID válido
   try {
     const { data, error } = await supabase
       .from("mensaje_trueque")
       .insert({
-        id: newMessage.id,
+        id: validId,
         publicacion_id: dto.publicacionId,
         emisor_id: dto.emisorId,
-        receptor_id: dto.receptorId,
+        receptor_id: dto.receptorId || null,
         contenido: cleanContent,
         leido: false,
       })
@@ -143,16 +171,18 @@ export async function sendChatMessage(dto: SendMessageDTO): Promise<TradeChatMes
         id: data.id,
         createdAt: data.created_at,
       };
+    } else if (error) {
+      console.error("[chatService] Error Supabase al insertar mensaje:", error.message);
     }
   } catch (err) {
-    console.warn("[chatService] Supabase no disponible, guardado en fallback local:", err);
+    console.warn("[chatService] Fallback local activo:", err);
   }
 
   return newMessage;
 }
 
 /**
- * Obtiene el historial de mensajes de la publicación
+ * Obtiene el historial de mensajes de una publicación consultando Supabase y local
  */
 export async function fetchMessagesByPublication(
   publicacionId: string,
@@ -168,7 +198,7 @@ export async function fetchMessagesByPublication(
       .order("created_at", { ascending: true });
 
     if (userId) {
-      query = query.or(`emisor_id.eq.${userId},receptor_id.eq.${userId}`);
+      query = query.or(`emisor_id.eq.${userId},receptor_id.eq.${userId},receptor_id.is.null`);
     }
 
     const { data, error } = await query;
@@ -201,7 +231,7 @@ export async function fetchMessagesByPublication(
       return merged;
     }
   } catch (err) {
-    console.warn("[chatService] Error al consultar Supabase, usando local:", err);
+    console.warn("[chatService] Consulta Supabase falló, usando local:", err);
   }
 
   return local.sort(
@@ -210,7 +240,51 @@ export async function fetchMessagesByPublication(
 }
 
 /**
- * Suscripción reactiva para recibir mensajes en tiempo real
+ * Obtiene todas las conversaciones activas para la pantalla completa de mensajes
+ */
+export async function fetchAllUserConversations(
+  userId: string
+): Promise<TradeChatMessage[]> {
+  const local = getLocalMessages().filter(
+    (m) => m.emisorId === userId || m.receptorId === userId || !m.receptorId
+  );
+
+  try {
+    const { data, error } = await supabase
+      .from("mensaje_trueque")
+      .select("*")
+      .or(`emisor_id.eq.${userId},receptor_id.eq.${userId},receptor_id.is.null`)
+      .order("created_at", { ascending: false });
+
+    if (!error && data) {
+      const remote: TradeChatMessage[] = data.map((d: any) => ({
+        id: d.id,
+        publicacionId: d.publicacion_id,
+        emisorId: d.emisor_id,
+        receptorId: d.receptor_id,
+        contenido: d.contenido,
+        leido: d.leido,
+        createdAt: d.created_at,
+      }));
+
+      const map = new Map<string, TradeChatMessage>();
+      local.forEach((m) => map.set(m.id, m));
+      remote.forEach((m) => map.set(m.id, m));
+      const combined = Array.from(map.values()).sort(
+        (a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime()
+      );
+      saveLocalMessages(combined);
+      return combined;
+    }
+  } catch (err) {
+    console.warn("[chatService] Error al obtener conversaciones globales:", err);
+  }
+
+  return local;
+}
+
+/**
+ * Suscripción reactiva para recibir mensajes en tiempo real (Realtime + Polling fallback)
  */
 export function subscribeToTradeChat(
   publicacionId: string,
@@ -218,7 +292,7 @@ export function subscribeToTradeChat(
 ): () => void {
   const handleCustomEvent = (e: Event) => {
     const custom = e as CustomEvent<TradeChatMessage>;
-    if (custom.detail && custom.detail.publicacionId === publicacionId) {
+    if (custom.detail && (!publicacionId || custom.detail.publicacionId === publicacionId)) {
       onMessageReceived(custom.detail);
     }
   };
@@ -228,7 +302,7 @@ export function subscribeToTradeChat(
       try {
         const parsed: TradeChatMessage[] = JSON.parse(e.newValue);
         const last = parsed[parsed.length - 1];
-        if (last && last.publicacionId === publicacionId) {
+        if (last && (!publicacionId || last.publicacionId === publicacionId)) {
           onMessageReceived(last);
         }
       } catch {}
@@ -240,17 +314,19 @@ export function subscribeToTradeChat(
     window.addEventListener("storage", handleStorageEvent);
   }
 
+  // Canal Realtime de Supabase
   let channel: any = null;
   try {
+    const filterStr = publicacionId ? `publicacion_id=eq.${publicacionId}` : undefined;
     channel = supabase
-      .channel(`trade_chat_${publicacionId}`)
+      .channel(`chat_sub_${publicacionId || "global"}_${Date.now()}`)
       .on(
         "postgres_changes",
         {
           event: "INSERT",
           schema: "public",
           table: "mensaje_trueque",
-          filter: `publicacion_id=eq.${publicacionId}`,
+          filter: filterStr,
         },
         (payload: any) => {
           if (payload.new) {
@@ -271,10 +347,26 @@ export function subscribeToTradeChat(
     console.warn("[chatService] Canal Realtime falló:", err);
   }
 
+  // Polling de respaldo cada 3 segundos para sincronizar pestañas de incógnito
+  let pollInterval: any = null;
+  if (typeof window !== "undefined") {
+    pollInterval = setInterval(async () => {
+      try {
+        if (!publicacionId) return;
+        const latest = await fetchMessagesByPublication(publicacionId);
+        if (latest.length > 0) {
+          const lastMsg = latest[latest.length - 1];
+          onMessageReceived(lastMsg);
+        }
+      } catch {}
+    }, 3000);
+  }
+
   return () => {
     if (typeof window !== "undefined") {
       window.removeEventListener("truekly_chat_message", handleCustomEvent);
       window.removeEventListener("storage", handleStorageEvent);
+      if (pollInterval) clearInterval(pollInterval);
     }
     if (channel) {
       supabase.removeChannel(channel);
