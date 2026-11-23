@@ -11,8 +11,12 @@ import {
   Search,
   Package,
   Check,
+  CheckCheck,
   Loader2,
   X,
+  Paperclip,
+  Image as ImageIcon,
+  Video,
 } from "lucide-react";
 import { useAuth } from "../context/AuthContext";
 import { fetchPublications } from "../services/publicationService";
@@ -23,11 +27,14 @@ import {
   fetchAllUserConversations,
   subscribeToTradeChat,
   formatMessageTime,
+  markMessagesAsRead,
   type TradeChatMessage,
 } from "../services/chatService";
 import {
   fetchUserTrades,
   createTradeProposal,
+  acceptTradePact,
+  cancelTradeProposal,
   confirmTradeHandshake,
   computeHandshakeStatus,
   type TradeProposal,
@@ -71,7 +78,17 @@ export default function MessagesPage({
   const [isConfirming, setIsConfirming] = useState(false);
   const [searchTerm, setSearchTerm] = useState("");
 
-  // Modal para proponer trueque
+  // Adjuntos multimedia (Fotos o Videos para mostrar el producto a cambiar)
+  const [attachedMedia, setAttachedMedia] = useState<{
+    url: string;
+    tipo: "imagen" | "video";
+    name: string;
+  } | null>(null);
+  const [previewModalUrl, setPreviewModalUrl] = useState<string | null>(null);
+  const [isCompressingMedia, setIsCompressingMedia] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
+  // Modal para proponer pacto de trueque
   const [showProposalModal, setShowProposalModal] = useState(false);
   const [offeredItemText, setOfferedItemText] = useState("");
   const [selectedSafePoint, setSelectedSafePoint] = useState(CHIMBOTE_SAFE_POINTS[0]);
@@ -79,7 +96,7 @@ export default function MessagesPage({
 
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
-  // 1. Carga inicial
+  // 1. Carga inicial de datos
   useEffect(() => {
     let isMounted = true;
     Promise.all([
@@ -102,7 +119,7 @@ export default function MessagesPage({
     };
   }, [user?.id, initialPublicationId, selectedPubId]);
 
-  // 2. Sincronización continua bidireccional cada 2.5 segundos (estilo WhatsApp)
+  // 2. Sincronización continua bidireccional cada 2.5 segundos
   useEffect(() => {
     const currentUserId = user?.id;
     if (!currentUserId) return;
@@ -142,7 +159,9 @@ export default function MessagesPage({
           setActiveMessages((prev) => {
             if (
               prev.length !== chatMsgs.length ||
-              (chatMsgs.length > 0 && prev[prev.length - 1]?.id !== chatMsgs[chatMsgs.length - 1]?.id)
+              (chatMsgs.length > 0 &&
+                (prev[prev.length - 1]?.id !== chatMsgs[chatMsgs.length - 1]?.id ||
+                  prev[prev.length - 1]?.leido !== chatMsgs[chatMsgs.length - 1]?.leido))
             ) {
               return chatMsgs;
             }
@@ -160,17 +179,23 @@ export default function MessagesPage({
     };
   }, [user?.id, selectedPubId]);
 
-  // 3. Suscripción a eventos reactivos de Supabase / Local
+  // 3. Suscripción a eventos reactivos de Supabase / Local / Read Receipts
   useEffect(() => {
     if (!user?.id) return;
     const unsub = subscribeToTradeChat(selectedPubId || "", (incoming) => {
       setAllMessages((prev) => {
-        if (prev.some((m) => m.id === incoming.id)) return prev;
+        const exists = prev.some((m) => m.id === incoming.id);
+        if (exists) {
+          return prev.map((m) => (m.id === incoming.id ? incoming : m));
+        }
         return [incoming, ...prev];
       });
       if (selectedPubId && incoming.publicacionId === selectedPubId) {
         setActiveMessages((prev) => {
-          if (prev.some((m) => m.id === incoming.id)) return prev;
+          const exists = prev.some((m) => m.id === incoming.id);
+          if (exists) {
+            return prev.map((m) => (m.id === incoming.id ? incoming : m));
+          }
           return [...prev, incoming];
         });
       }
@@ -181,15 +206,25 @@ export default function MessagesPage({
         fetchUserTrades(user.id).then(setUserTrades);
       }
     };
+
+    const handleReadEvent = (e: Event) => {
+      const custom = e as CustomEvent<{ publicacionId: string }>;
+      if (custom.detail?.publicacionId === selectedPubId && user?.id) {
+        fetchMessagesByPublication(selectedPubId, user.id).then(setActiveMessages);
+      }
+    };
+
     window.addEventListener("truekly_trade_updated", handleTradeEvent);
+    window.addEventListener("truekly_chat_read", handleReadEvent);
 
     return () => {
       unsub();
       window.removeEventListener("truekly_trade_updated", handleTradeEvent);
+      window.removeEventListener("truekly_chat_read", handleReadEvent);
     };
   }, [selectedPubId, user?.id]);
 
-  // 4. Cargar mensajes del chat seleccionado al cambiar
+  // 4. Cargar mensajes del chat seleccionado al cambiar y marcar como leídos
   useEffect(() => {
     if (!selectedPubId) {
       setActiveMessages([]);
@@ -199,6 +234,12 @@ export default function MessagesPage({
     fetchMessagesByPublication(selectedPubId, user?.id).then((msgs) => {
       if (isMounted) {
         setActiveMessages(msgs);
+        if (user?.id) {
+          const hasUnread = msgs.some((m) => m.emisorId !== user.id && !m.leido);
+          if (hasUnread) {
+            markMessagesAsRead(selectedPubId, user.id);
+          }
+        }
       }
     });
 
@@ -216,7 +257,6 @@ export default function MessagesPage({
   const threads: ChatThread[] = React.useMemo(() => {
     const threadMap = new Map<string, ChatThread>();
 
-    // Ordenar de más reciente a más antiguo
     const sortedDesc = [...allMessages].sort(
       (a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
     );
@@ -230,12 +270,14 @@ export default function MessagesPage({
           condition: "Buen estado",
           zone: "Chimbote",
           wantsInReturn: "Objeto a coordinar",
-          image: "https://images.unsplash.com/photo-1526170375885-4d8ecf77b99f?w=400&auto=format&fit=crop&q=80",
+          image:
+            "https://images.unsplash.com/photo-1526170375885-4d8ecf77b99f?w=400&auto=format&fit=crop&q=80",
           rating: 5.0,
           exchangesCount: 0,
           owner: {
             name: msg.emisorNombre || "Usuario",
-            avatar: "https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=100&auto=format&fit=crop&q=80",
+            avatar:
+              "https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=100&auto=format&fit=crop&q=80",
           },
         } as Product;
 
@@ -247,9 +289,9 @@ export default function MessagesPage({
 
         const isUserOwner = Boolean(user?.id && pub.userId && pub.userId === user.id);
         const counterparty = isUserOwner
-          ? (msg.emisorId !== user?.id && msg.emisorNombre
-              ? msg.emisorNombre
-              : "Interesado en tu artículo")
+          ? msg.emisorId !== user?.id && msg.emisorNombre
+            ? msg.emisorNombre
+            : "Interesado en tu artículo"
           : pub.owner.name;
 
         threadMap.set(msg.publicacionId, {
@@ -261,7 +303,6 @@ export default function MessagesPage({
       }
     }
 
-    // Si hay un initialPublicationId seleccionado pero aún no tiene mensajes
     if (initialPublicationId && !threadMap.has(initialPublicationId)) {
       const pub = publications.find((p) => p.id === initialPublicationId);
       if (pub) {
@@ -308,19 +349,81 @@ export default function MessagesPage({
     user?.id && selectedProduct?.userId && selectedProduct.userId === user.id
   );
 
-  // Obtener el interlocutor real
   const otherUserName = isOwner
     ? selectedThread?.counterpartyName || "Interesado en tu artículo"
     : selectedProduct?.owner.name || "Anunciante";
 
   const otherUserAvatar = isOwner
     ? "https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=150&auto=format&fit=crop&q=80"
-    : selectedProduct?.owner.avatar || "https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=100&auto=format&fit=crop&q=80";
+    : selectedProduct?.owner.avatar ||
+      "https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=100&auto=format&fit=crop&q=80";
+
+  // Procesamiento y compresión de archivos multimedia antes de envío
+  const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    if (file.type.startsWith("image/")) {
+      setIsCompressingMedia(true);
+      const reader = new FileReader();
+      reader.onload = (event) => {
+        const img = new Image();
+        img.onload = () => {
+          const maxDim = 1200;
+          let w = img.width;
+          let h = img.height;
+          if (w > maxDim || h > maxDim) {
+            if (w > h) {
+              h = Math.round((h * maxDim) / w);
+              w = maxDim;
+            } else {
+              w = Math.round((w * maxDim) / h);
+              h = maxDim;
+            }
+          }
+          const canvas = document.createElement("canvas");
+          canvas.width = w;
+          canvas.height = h;
+          const ctx = canvas.getContext("2d");
+          ctx?.drawImage(img, 0, 0, w, h);
+          const compressed = canvas.toDataURL("image/jpeg", 0.8);
+          setAttachedMedia({
+            url: compressed,
+            tipo: "imagen",
+            name: file.name,
+          });
+          setIsCompressingMedia(false);
+        };
+        img.onerror = () => setIsCompressingMedia(false);
+        img.src = event.target?.result as string;
+      };
+      reader.onerror = () => setIsCompressingMedia(false);
+      reader.readAsDataURL(file);
+    } else if (file.type.startsWith("video/")) {
+      if (file.size > 15 * 1024 * 1024) {
+        alert("El video seleccionado supera los 15 MB. Por favor elige uno más corto.");
+        return;
+      }
+      setIsCompressingMedia(true);
+      const reader = new FileReader();
+      reader.onload = (event) => {
+        setAttachedMedia({
+          url: event.target?.result as string,
+          tipo: "video",
+          name: file.name,
+        });
+        setIsCompressingMedia(false);
+      };
+      reader.onerror = () => setIsCompressingMedia(false);
+      reader.readAsDataURL(file);
+    }
+    if (fileInputRef.current) fileInputRef.current.value = "";
+  };
 
   const handleSendMessage = async (e: React.FormEvent) => {
     e.preventDefault();
     const text = inputText.trim();
-    if (!text || isSending || !user?.id || !selectedPubId) return;
+    if ((!text && !attachedMedia) || isSending || !user?.id || !selectedPubId) return;
 
     setIsSending(true);
     try {
@@ -337,12 +440,17 @@ export default function MessagesPage({
         targetUserId = selectedProduct?.userId || activeTrade?.receptorId || null;
       }
 
+      const mediaToSend = attachedMedia;
+      setAttachedMedia(null);
+
       const sent = await sendChatMessage({
         publicacionId: selectedPubId,
         emisorId: user.id,
         emisorNombre: user.nombre || user.username || "Usuario",
         receptorId: targetUserId,
         contenido: text,
+        multimediaUrl: mediaToSend?.url,
+        multimediaTipo: mediaToSend?.tipo,
       });
 
       setActiveMessages((prev) => {
@@ -357,6 +465,7 @@ export default function MessagesPage({
     }
   };
 
+  // 1. Proponer pacto de trueque
   const handleCreateProposal = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!user?.id || !selectedProduct || !offeredItemText.trim() || isCreatingProposal) return;
@@ -382,15 +491,19 @@ export default function MessagesPage({
         puntoEncuentro: selectedSafePoint,
       });
 
-      setUserTrades((prev) => [newProposal, ...prev.filter((t) => t.id !== newProposal.id)]);
+      const updatedProposal = {
+        ...newProposal,
+        confirmadoProponente: true,
+      };
 
-      // Enviar mensaje en el chat informando la propuesta
+      setUserTrades((prev) => [updatedProposal, ...prev.filter((t) => t.id !== newProposal.id)]);
+
       await sendChatMessage({
         publicacionId: selectedProduct.id,
         emisorId: user.id,
         emisorNombre: user.nombre || user.username || "Usuario",
         receptorId: targetUserId,
-        contenido: `🔄 He propuesto un acuerdo de trueque presencial: "${offeredItemText.trim()}" a cambio de "${selectedProduct.title}" en ${selectedSafePoint}. Ambos debemos confirmar la entrega presencial cuando nos encontremos.`,
+        contenido: `🔄 He propuesto formalmente un pacto de trueque: "${offeredItemText.trim()}" a cambio de "${selectedProduct.title}" en ${selectedSafePoint}. Por favor pulsa en 'Aceptar Pacto' para registrar formalmente el acuerdo.`,
       });
 
       const updatedMsgs = await fetchMessagesByPublication(selectedProduct.id, user.id);
@@ -404,11 +517,44 @@ export default function MessagesPage({
     }
   };
 
-  const handleConfirmTrade = async () => {
+  // 2. Aceptar el pacto formal (ambos de acuerdo)
+  const handleAcceptPact = async () => {
     if (!activeTrade || !user?.id || isConfirming) return;
     setIsConfirming(true);
     try {
-      await confirmTradeHandshake(activeTrade.id, user.id);
+      const updated = await acceptTradePact(activeTrade.id, user.id);
+      if (updated) {
+        setUserTrades((prev) => prev.map((t) => (t.id === updated.id ? updated : t)));
+      }
+
+      const counterMsg = activeMessages.find((m) => m.emisorId && m.emisorId !== user.id);
+      const targetUserId = isOwner
+        ? counterMsg?.emisorId || null
+        : selectedProduct?.userId || null;
+
+      await sendChatMessage({
+        publicacionId: selectedPubId || "",
+        emisorId: user.id,
+        emisorNombre: user.nombre || user.username || "Usuario",
+        receptorId: targetUserId,
+        contenido: `🤝 ¡Pacto formal de trueque aceptado por ambas partes! Acordaron intercambiar "${activeTrade.tituloOfertado}" por "${activeTrade.tituloSolicitado}" en ${activeTrade.puntoEncuentro}. Ahora procedan a encontrarse en el punto seguro y confirmen la entrega física al tener el objeto en mano.`,
+      });
+
+      if (selectedPubId) {
+        const msgs = await fetchMessagesByPublication(selectedPubId, user.id);
+        setActiveMessages(msgs);
+      }
+    } finally {
+      setIsConfirming(false);
+    }
+  };
+
+  // 3. Cancelar o rechazar la propuesta
+  const handleCancelPact = async () => {
+    if (!activeTrade || !user?.id || isConfirming) return;
+    setIsConfirming(true);
+    try {
+      await cancelTradeProposal(activeTrade.id, user.id);
       const updatedTrades = await fetchUserTrades(user.id);
       setUserTrades(updatedTrades);
 
@@ -422,7 +568,43 @@ export default function MessagesPage({
         emisorId: user.id,
         emisorNombre: user.nombre || user.username || "Usuario",
         receptorId: targetUserId,
-        contenido: `🤝 He confirmado la entrega física presencial del trueque en ${activeTrade.puntoEncuentro}.`,
+        contenido: `❌ La propuesta de trueque ha sido cancelada. Pueden coordinar un nuevo acuerdo en el chat.`,
+      });
+
+      if (selectedPubId) {
+        const msgs = await fetchMessagesByPublication(selectedPubId, user.id);
+        setActiveMessages(msgs);
+      }
+    } finally {
+      setIsConfirming(false);
+    }
+  };
+
+  // 4. Confirmar entrega física presencial
+  const handleConfirmTrade = async () => {
+    if (!activeTrade || !user?.id || isConfirming) return;
+    setIsConfirming(true);
+    try {
+      await confirmTradeHandshake(activeTrade.id, user.id);
+      const updatedTrades = await fetchUserTrades(user.id);
+      setUserTrades(updatedTrades);
+
+      const counterMsg = activeMessages.find((m) => m.emisorId && m.emisorId !== user.id);
+      const targetUserId = isOwner
+        ? counterMsg?.emisorId || null
+        : selectedProduct?.userId || null;
+
+      const isCompleted =
+        updatedTrades.find((t) => t.id === activeTrade.id)?.estado === "completada";
+
+      await sendChatMessage({
+        publicacionId: selectedPubId || "",
+        emisorId: user.id,
+        emisorNombre: user.nombre || user.username || "Usuario",
+        receptorId: targetUserId,
+        contenido: isCompleted
+          ? `🎉 ¡Trueque finalizado con éxito! Ambas partes han confirmado la entrega presencial en ${activeTrade.puntoEncuentro}.`
+          : `🤝 He confirmado la entrega física presencial del trueque en ${activeTrade.puntoEncuentro}.`,
       });
 
       if (selectedPubId) {
@@ -515,6 +697,10 @@ export default function MessagesPage({
                   const isUserOwner = Boolean(
                     user?.id && thread.publication.userId === user.id
                   );
+                  const isUnread =
+                    !thread.lastMessage.leido &&
+                    thread.lastMessage.emisorId &&
+                    thread.lastMessage.emisorId !== user?.id;
 
                   return (
                     <button
@@ -540,9 +726,14 @@ export default function MessagesPage({
                           <h2 className="text-xs font-bold text-ink truncate">
                             {thread.publication.title}
                           </h2>
-                          <span className="text-[10px] text-sage-400 shrink-0">
-                            {formatMessageTime(thread.lastMessage.createdAt)}
-                          </span>
+                          <div className="flex items-center gap-1 shrink-0">
+                            <span className="text-[10px] text-sage-400">
+                              {formatMessageTime(thread.lastMessage.createdAt)}
+                            </span>
+                            {isUnread && (
+                              <span className="h-2 w-2 rounded-full bg-jade-600" />
+                            )}
+                          </div>
                         </div>
 
                         <p className="text-[11px] text-sage-600 truncate mt-0.5">
@@ -552,21 +743,39 @@ export default function MessagesPage({
                           </span>
                         </p>
 
-                        <p className="text-[11px] text-sage-500 truncate mt-0.5">
-                          {thread.lastMessage.contenido}
-                        </p>
+                        <div className="text-[11px] text-sage-500 truncate mt-0.5 flex items-center gap-1">
+                          {thread.lastMessage.multimediaTipo === "video" ? (
+                            <>
+                              <Video className="h-3 w-3 shrink-0 text-sage-500" />
+                              <span>{thread.lastMessage.contenido || "Video"}</span>
+                            </>
+                          ) : thread.lastMessage.multimediaUrl ? (
+                            <>
+                              <ImageIcon className="h-3 w-3 shrink-0 text-sage-500" />
+                              <span>{thread.lastMessage.contenido || "Foto"}</span>
+                            </>
+                          ) : (
+                            <span>{thread.lastMessage.contenido}</span>
+                          )}
+                        </div>
 
-                        {thread.tradeProposal && (
-                          <span className={`inline-flex items-center gap-1 mt-1 text-[10px] font-semibold px-1.5 py-0.5 rounded border ${
-                            thread.tradeProposal.estado === "completada"
-                              ? "text-emerald-700 bg-emerald-50 border-emerald-200"
-                              : "text-amber-700 bg-amber-50 border-amber-200"
-                          }`}>
+                        {thread.tradeProposal && thread.tradeProposal.estado !== "cancelada" && (
+                          <span
+                            className={`inline-flex items-center gap-1 mt-1 text-[10px] font-semibold px-1.5 py-0.5 rounded border ${
+                              thread.tradeProposal.estado === "completada"
+                                ? "text-emerald-700 bg-emerald-50 border-emerald-200"
+                                : thread.tradeProposal.estado === "pactado"
+                                ? "text-jade-800 bg-jade-50 border-jade-200"
+                                : "text-amber-700 bg-amber-50 border-amber-200"
+                            }`}
+                          >
                             <Repeat className="h-2.5 w-2.5" />
                             <span>
                               {thread.tradeProposal.estado === "completada"
                                 ? "Trueque completado"
-                                : "Trueque en curso"}
+                                : thread.tradeProposal.estado === "pactado"
+                                ? "Pacto acordado"
+                                : "Propuesta pendiente"}
                             </span>
                           </span>
                         )}
@@ -628,7 +837,7 @@ export default function MessagesPage({
                   </div>
 
                   <div className="flex items-center gap-2">
-                    {!activeTrade && (
+                    {(!activeTrade || activeTrade.estado === "cancelada") && (
                       <button
                         type="button"
                         onClick={() => setShowProposalModal(true)}
@@ -646,7 +855,7 @@ export default function MessagesPage({
                 </div>
 
                 {/* Banner del Producto en Negociación */}
-                <div className="flex items-center justify-between gap-3 border-b border-line bg-[#F2F5F3] px-4 py-2.5 text-xs">
+                <div className="flex items-center justify-between gap-3 border-b border-line bg-[#F2F5F3] px-4 py-2 text-xs">
                   <div className="flex items-center gap-2.5 min-w-0">
                     <img
                       src={selectedProduct.image}
@@ -669,67 +878,126 @@ export default function MessagesPage({
                   </span>
                 </div>
 
-                {/* Widget de Handshake si hay propuesta activa */}
-                {activeTrade && handshakeStatus ? (
-                  <div className={`border-b px-4 py-3 ${
-                    handshakeStatus.isCompleted
-                      ? "bg-emerald-50/90 border-emerald-200"
-                      : "bg-amber-50/90 border-amber-200"
-                  }`}>
+                {/* Banner de Pacto / Handshake si hay propuesta activa */}
+                {activeTrade && activeTrade.estado !== "cancelada" && handshakeStatus ? (
+                  <div
+                    className={`border-b px-4 py-3 transition-colors ${
+                      handshakeStatus.isCompleted
+                        ? "bg-emerald-50/90 border-emerald-200"
+                        : handshakeStatus.isPactado
+                        ? "bg-jade-50/90 border-jade-200"
+                        : "bg-amber-50/90 border-amber-200"
+                    }`}
+                  >
                     <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-                      <div className="space-y-1">
+                      <div className="space-y-1 min-w-0">
                         <div className="flex items-center gap-1.5 text-xs font-bold text-ink">
-                          <Repeat className="h-4 w-4 text-jade-700" />
-                          <span>
+                          <Repeat className="h-4 w-4 text-jade-700 shrink-0" />
+                          <span className="truncate">
                             {handshakeStatus.isCompleted
                               ? "¡Trueque Completado con Éxito! (2/2)"
-                              : "Acuerdo de trueque presencial en curso"}
+                              : handshakeStatus.isPactado
+                              ? "✅ Pacto formal acordado — Coordinar entrega presencial"
+                              : activeTrade.proponenteId === user?.id
+                              ? "⏳ Esperando aceptación del pacto por la contraparte"
+                              : "🔔 Propuesta de pacto recibida — Requiere tu confirmación"}
                           </span>
                         </div>
-                        <p className="text-[11px] text-sage-600">
+                        <p className="text-[11px] text-sage-600 truncate">
                           <span className="font-semibold text-ink">{activeTrade.tituloOfertado}</span> por{" "}
                           <span className="font-semibold text-ink">{activeTrade.tituloSolicitado}</span> en{" "}
                           <span className="text-jade-800 font-medium">{activeTrade.puntoEncuentro}</span>
                         </p>
                       </div>
 
-                      {handshakeStatus.canConfirm && user?.id ? (
-                        <button
-                          type="button"
-                          disabled={isConfirming}
-                          onClick={handleConfirmTrade}
-                          className="inline-flex items-center justify-center gap-1.5 rounded-xl bg-jade-600 px-4 py-2 text-xs font-bold text-white shadow-xs hover:bg-jade-700 active:scale-[0.98] transition-all disabled:opacity-50"
-                        >
-                          {isConfirming ? (
-                            <>
-                              <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                              <span>Confirmando entrega...</span>
-                            </>
-                          ) : (
-                            <>
-                              <Check className="h-4 w-4" />
-                              <span>Confirmar entrega presencial</span>
-                            </>
-                          )}
-                        </button>
-                      ) : (
-                        <div className="flex items-center gap-2">
-                          <span
-                            className={`inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-xs font-semibold border ${
-                              handshakeStatus.badgeVariant === "completed"
-                                ? "bg-emerald-100 text-emerald-800 border-emerald-300"
-                                : "bg-amber-100 text-amber-800 border-amber-300"
-                            }`}
-                          >
-                            {handshakeStatus.badgeVariant === "completed" ? (
-                              <CheckCircle2 className="h-3.5 w-3.5 text-emerald-700" />
+                      {/* Acciones según el estado del flujo */}
+                      <div className="flex items-center gap-2 shrink-0">
+                        {/* FASE 1: Pendiente de aceptación formal mutua */}
+                        {!handshakeStatus.isPactado && !handshakeStatus.isCompleted && (
+                          <>
+                            {activeTrade.proponenteId !== user?.id ? (
+                              <div className="flex items-center gap-2">
+                                <button
+                                  type="button"
+                                  disabled={isConfirming}
+                                  onClick={handleAcceptPact}
+                                  className="inline-flex items-center gap-1.5 rounded-xl bg-jade-600 px-3.5 py-1.5 text-xs font-bold text-white shadow-xs hover:bg-jade-700 active:scale-[0.98] transition disabled:opacity-50"
+                                >
+                                  {isConfirming ? (
+                                    <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                                  ) : (
+                                    <Check className="h-3.5 w-3.5" />
+                                  )}
+                                  <span>Aceptar Pacto</span>
+                                </button>
+                                <button
+                                  type="button"
+                                  disabled={isConfirming}
+                                  onClick={handleCancelPact}
+                                  className="rounded-xl border border-line bg-white px-3 py-1.5 text-xs font-semibold text-rose-600 hover:bg-rose-50 transition disabled:opacity-50"
+                                >
+                                  Rechazar
+                                </button>
+                              </div>
                             ) : (
-                              <Clock className="h-3.5 w-3.5 text-amber-700" />
+                              <div className="flex items-center gap-2">
+                                <span className="inline-flex items-center gap-1.5 rounded-full bg-amber-100 px-3 py-1 text-xs font-semibold text-amber-800 border border-amber-300">
+                                  <Clock className="h-3.5 w-3.5 text-amber-700" />
+                                  <span>Esperando respuesta</span>
+                                </span>
+                                <button
+                                  type="button"
+                                  disabled={isConfirming}
+                                  onClick={handleCancelPact}
+                                  className="rounded-lg p-1 text-sage-400 hover:bg-paper hover:text-rose-600 transition"
+                                  title="Cancelar propuesta"
+                                >
+                                  <X className="h-4 w-4" />
+                                </button>
+                              </div>
                             )}
-                            <span>{handshakeStatus.badgeLabel}</span>
+                          </>
+                        )}
+
+                        {/* FASE 2: Pactado formalmente, pendiente de entrega física */}
+                        {handshakeStatus.isPactado && !handshakeStatus.isCompleted && (
+                          <>
+                            {handshakeStatus.canConfirmDelivery && user?.id ? (
+                              <button
+                                type="button"
+                                disabled={isConfirming}
+                                onClick={handleConfirmTrade}
+                                className="inline-flex items-center justify-center gap-1.5 rounded-xl bg-jade-600 px-4 py-2 text-xs font-bold text-white shadow-xs hover:bg-jade-700 active:scale-[0.98] transition disabled:opacity-50"
+                              >
+                                {isConfirming ? (
+                                  <>
+                                    <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                                    <span>Confirmando...</span>
+                                  </>
+                                ) : (
+                                  <>
+                                    <Check className="h-4 w-4" />
+                                    <span>Confirmar entrega presencial</span>
+                                  </>
+                                )}
+                              </button>
+                            ) : (
+                              <span className="inline-flex items-center gap-1.5 rounded-full bg-amber-100 px-3 py-1 text-xs font-semibold text-amber-800 border border-amber-300">
+                                <Clock className="h-3.5 w-3.5 text-amber-700" />
+                                <span>Esperando confirmación física de contraparte (1/2)</span>
+                              </span>
+                            )}
+                          </>
+                        )}
+
+                        {/* FASE 3: Completado */}
+                        {handshakeStatus.isCompleted && (
+                          <span className="inline-flex items-center gap-1.5 rounded-full bg-emerald-100 px-3 py-1 text-xs font-semibold text-emerald-800 border border-emerald-300">
+                            <CheckCircle2 className="h-3.5 w-3.5 text-emerald-700" />
+                            <span>Trueque finalizado</span>
                           </span>
-                        </div>
-                      )}
+                        )}
+                      </div>
                     </div>
                   </div>
                 ) : (
@@ -737,7 +1005,7 @@ export default function MessagesPage({
                     <div className="flex items-center gap-2 text-sage-600 min-w-0">
                       <Repeat className="h-3.5 w-3.5 text-jade-700 shrink-0" />
                       <span className="truncate">
-                        ¿Listos para acordar el intercambio? Pacten el punto de encuentro y los objetos.
+                        ¿Listos para acordar el intercambio? Pacten el punto de encuentro y los artículos.
                       </span>
                     </div>
                     <button
@@ -760,7 +1028,7 @@ export default function MessagesPage({
                       </div>
                       <h3 className="text-sm font-bold text-ink">Inicia la conversación</h3>
                       <p className="mt-1 max-w-sm text-xs leading-relaxed text-sage-500">
-                        Escríbele para pactar detalles del objeto y coordinar el encuentro en un punto seguro de Chimbote.
+                        Escríbele o adjunta una foto del artículo que deseas intercambiar y coordinen el punto seguro en Chimbote.
                       </p>
                     </div>
                   ) : (
@@ -785,14 +1053,57 @@ export default function MessagesPage({
                                 {msg.emisorNombre || otherUserName}
                               </span>
                             )}
-                            <p className="whitespace-pre-wrap">{msg.contenido}</p>
+
+                            {/* Foto o Video adjunto */}
+                            {msg.multimediaUrl && (
+                              <div className="mb-2 overflow-hidden rounded-xl">
+                                {msg.multimediaTipo === "video" ? (
+                                  <video
+                                    src={msg.multimediaUrl}
+                                    controls
+                                    playsInline
+                                    className="max-h-64 w-full rounded-xl bg-black object-contain"
+                                  />
+                                ) : (
+                                  <button
+                                    type="button"
+                                    onClick={() => setPreviewModalUrl(msg.multimediaUrl!)}
+                                    className="block w-full overflow-hidden rounded-xl text-left focus:outline-none"
+                                  >
+                                    <img
+                                      src={msg.multimediaUrl}
+                                      alt="Artículo para trueque"
+                                      className="max-h-64 w-full rounded-xl object-cover hover:opacity-95 transition"
+                                    />
+                                  </button>
+                                )}
+                              </div>
+                            )}
+
+                            {msg.contenido && (
+                              <p className="whitespace-pre-wrap">{msg.contenido}</p>
+                            )}
+
+                            {/* Hora y Checks estilo WhatsApp */}
                             <div
                               className={`mt-1 flex items-center justify-end gap-1 text-[9px] ${
                                 isMine ? "text-white/80" : "text-sage-400"
                               }`}
                             >
-                              <Clock className="h-2.5 w-2.5" />
                               <span>{formatMessageTime(msg.createdAt)}</span>
+                              {isMine && (
+                                msg.leido ? (
+                                  <CheckCheck
+                                    className="h-3 w-3 text-sky-300"
+                                    aria-label="Visto / Leído"
+                                  />
+                                ) : (
+                                  <CheckCheck
+                                    className="h-3 w-3 text-white/70"
+                                    aria-label="Entregado"
+                                  />
+                                )
+                              )}
                             </div>
                           </div>
                         </div>
@@ -802,12 +1113,72 @@ export default function MessagesPage({
                   <div ref={messagesEndRef} />
                 </div>
 
+                {/* Preview de multimedia lista para enviar */}
+                {attachedMedia && (
+                  <div className="flex items-center justify-between gap-2 border-t border-line bg-jade-50/50 px-4 py-2 text-xs">
+                    <div className="flex items-center gap-2.5 min-w-0">
+                      {attachedMedia.tipo === "imagen" ? (
+                        <img
+                          src={attachedMedia.url}
+                          alt="Vista previa"
+                          className="h-10 w-10 rounded-lg object-cover border border-jade-300 shrink-0"
+                        />
+                      ) : (
+                        <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-jade-100 text-jade-700">
+                          <Video className="h-5 w-5" />
+                        </div>
+                      )}
+                      <div className="min-w-0">
+                        <span className="font-semibold text-ink block truncate">
+                          {attachedMedia.name}
+                        </span>
+                        <span className="text-[10px] text-sage-500">
+                          {attachedMedia.tipo === "imagen"
+                            ? "Foto adjunta lista para enviar"
+                            : "Video adjunto listo para enviar"}
+                        </span>
+                      </div>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => setAttachedMedia(null)}
+                      className="p-1 rounded-lg text-sage-400 hover:bg-paper hover:text-ink transition"
+                      title="Eliminar adjunto"
+                    >
+                      <X className="h-4 w-4" />
+                    </button>
+                  </div>
+                )}
+
                 {/* Input de Envío */}
                 <form
                   onSubmit={handleSendMessage}
                   className="border-t border-line bg-white p-3 sm:px-4"
                 >
                   <div className="flex items-center gap-2">
+                    {/* Botón para adjuntar foto o video */}
+                    <input
+                      ref={fileInputRef}
+                      type="file"
+                      accept="image/*,video/*"
+                      onChange={handleFileSelect}
+                      className="hidden"
+                      id="chat-file-attachment"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => fileInputRef.current?.click()}
+                      disabled={isCompressingMedia || isSending}
+                      title="Adjuntar foto o video del artículo a cambiar"
+                      className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-line bg-paper text-sage-600 hover:bg-jade-50 hover:text-jade-700 transition disabled:opacity-50"
+                    >
+                      {isCompressingMedia ? (
+                        <Loader2 className="h-4 w-4 animate-spin text-jade-600" />
+                      ) : (
+                        <Paperclip className="h-4 w-4" aria-hidden="true" />
+                      )}
+                    </button>
+
                     <input
                       type="text"
                       value={inputText}
@@ -817,11 +1188,15 @@ export default function MessagesPage({
                     />
                     <button
                       type="submit"
-                      disabled={!inputText.trim() || isSending || !user?.id}
+                      disabled={(!inputText.trim() && !attachedMedia) || isSending || !user?.id}
                       aria-label="Enviar mensaje"
                       className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-jade-600 text-white shadow-2xs transition hover:bg-jade-700 disabled:opacity-50 disabled:cursor-not-allowed focus-visible:outline-2 focus-visible:outline-jade-500"
                     >
-                      <Send className="h-4 w-4" aria-hidden="true" />
+                      {isSending ? (
+                        <Loader2 className="h-4 w-4 animate-spin" />
+                      ) : (
+                        <Send className="h-4 w-4" aria-hidden="true" />
+                      )}
                     </button>
                   </div>
                 </form>
@@ -833,7 +1208,7 @@ export default function MessagesPage({
                 </div>
                 <h2 className="text-base font-bold text-ink">Selecciona una conversación</h2>
                 <p className="mt-1 max-w-sm text-xs leading-relaxed text-sage-500">
-                  Elige un intercambio de la lista a la izquierda para ver los mensajes y coordinar el punto de entrega.
+                  Elige un intercambio de la lista a la izquierda para ver los mensajes, ver fotos y coordinar el punto de entrega.
                 </p>
               </div>
             )}
@@ -860,15 +1235,35 @@ export default function MessagesPage({
             </div>
 
             <form onSubmit={handleCreateProposal} className="mt-4 space-y-4 text-xs">
+              {/* Artículo fijo de la publicación */}
+              <div>
+                <label className="block font-semibold text-ink mb-1.5">
+                  Artículo de la publicación
+                </label>
+                <div className="flex items-center gap-3 rounded-xl border border-line bg-paper p-2.5">
+                  <img
+                    src={selectedProduct.image}
+                    alt=""
+                    className="h-11 w-11 rounded-lg border border-line object-cover shrink-0"
+                  />
+                  <div className="min-w-0">
+                    <p className="font-bold text-ink truncate">{selectedProduct.title}</p>
+                    <p className="text-[11px] text-sage-500 truncate">
+                      Interés del dueño: {selectedProduct.wantsInReturn}
+                    </p>
+                  </div>
+                </div>
+              </div>
+
               <div>
                 <label className="block font-semibold text-ink mb-1">
-                  Artículo que ofreces a cambio
+                  Artículo que se ofrece a cambio
                 </label>
                 <input
                   type="text"
                   value={offeredItemText}
                   onChange={(e) => setOfferedItemText(e.target.value)}
-                  placeholder={`Ej. ${selectedProduct.wantsInReturn || "Consola, tablet o celular"}`}
+                  placeholder={`Ej. ${selectedProduct.wantsInReturn || "PlayStation 4, Bicicleta, etc."}`}
                   className="w-full rounded-xl border border-line bg-paper px-3 py-2 text-xs text-ink placeholder:text-sage-400 focus:border-jade-500 focus:bg-white focus:outline-none"
                   autoFocus
                 />
@@ -876,7 +1271,7 @@ export default function MessagesPage({
 
               <div>
                 <label className="block font-semibold text-ink mb-1">
-                  Punto seguro de encuentro (Chimbote)
+                  Punto seguro de encuentro (Zonas vigiladas en Chimbote)
                 </label>
                 <select
                   value={selectedSafePoint}
@@ -892,6 +1287,10 @@ export default function MessagesPage({
                 <p className="mt-1 text-[11px] text-sage-500">
                   Lugar vigilado y de alta afluencia para realizar el intercambio con total seguridad.
                 </p>
+              </div>
+
+              <div className="rounded-xl bg-jade-50/60 border border-jade-100 p-2.5 text-[11px] text-jade-900 leading-relaxed">
+                ℹ️ Al enviar la propuesta, ambos usuarios deben pulsar para aceptar los términos del pacto. Una vez aceptado, queda formalmente registrado y procederán a la entrega presencial.
               </div>
 
               <div className="pt-2 flex items-center justify-end gap-2">
@@ -915,12 +1314,36 @@ export default function MessagesPage({
                   ) : (
                     <>
                       <Check className="h-3.5 w-3.5" />
-                      <span>Enviar propuesta</span>
+                      <span>Enviar propuesta de pacto</span>
                     </>
                   )}
                 </button>
               </div>
             </form>
+          </div>
+        </div>
+      )}
+
+      {/* Modal Lightbox para fotos ampliadas */}
+      {previewModalUrl && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-xs p-4 animate-in fade-in duration-150"
+          onClick={() => setPreviewModalUrl(null)}
+        >
+          <div className="relative max-w-4xl max-h-[90vh]">
+            <button
+              type="button"
+              onClick={() => setPreviewModalUrl(null)}
+              className="absolute -top-10 right-0 p-2 text-white/80 hover:text-white"
+            >
+              <X className="h-6 w-6" />
+            </button>
+            <img
+              src={previewModalUrl}
+              alt="Foto ampliada del trueque"
+              className="max-h-[85vh] max-w-full rounded-2xl object-contain shadow-2xl"
+              onClick={(e) => e.stopPropagation()}
+            />
           </div>
         </div>
       )}

@@ -7,6 +7,8 @@ export interface TradeChatMessage {
   emisorNombre?: string;
   receptorId: string | null;
   contenido: string;
+  multimediaUrl?: string;
+  multimediaTipo?: "imagen" | "video";
   leido: boolean;
   createdAt: string;
 }
@@ -17,6 +19,8 @@ export interface SendMessageDTO {
   emisorNombre?: string;
   receptorId: string | null;
   contenido: string;
+  multimediaUrl?: string;
+  multimediaTipo?: "imagen" | "video";
 }
 
 export interface ConversationSummary {
@@ -73,9 +77,12 @@ export function generateUUID(): string {
 /**
  * Valida el contenido de un mensaje antes de su transmisión
  */
-export function validateMessageContent(content: string): { valid: boolean; error?: string } {
+export function validateMessageContent(
+  content: string,
+  hasMedia = false
+): { valid: boolean; error?: string } {
   const trimmed = content.trim();
-  if (trimmed.length === 0) {
+  if (trimmed.length === 0 && !hasMedia) {
     return { valid: false, error: "El mensaje no puede estar vacío" };
   }
   if (trimmed.length > 2000) {
@@ -142,7 +149,8 @@ function saveLocalMessages(messages: TradeChatMessage[]): void {
  * Envía un mensaje con UUID válido a Supabase y caché local
  */
 export async function sendChatMessage(dto: SendMessageDTO): Promise<TradeChatMessage> {
-  const validation = validateMessageContent(dto.contenido);
+  const hasMedia = Boolean(dto.multimediaUrl);
+  const validation = validateMessageContent(dto.contenido, hasMedia);
   if (!validation.valid) {
     throw new Error(validation.error || "Mensaje inválido");
   }
@@ -156,7 +164,9 @@ export async function sendChatMessage(dto: SendMessageDTO): Promise<TradeChatMes
     emisorId: dto.emisorId,
     emisorNombre: dto.emisorNombre || "Usuario",
     receptorId: dto.receptorId,
-    contenido: cleanContent,
+    contenido: cleanContent || (dto.multimediaTipo === "video" ? "🎥 Video adjunto" : "📷 Foto adjunta"),
+    multimediaUrl: dto.multimediaUrl,
+    multimediaTipo: dto.multimediaTipo,
     leido: false,
     createdAt: new Date().toISOString(),
   };
@@ -175,20 +185,41 @@ export async function sendChatMessage(dto: SendMessageDTO): Promise<TradeChatMes
     );
   }
 
-  // Persistir en Supabase con UUID válido
+  // Persistir en Supabase con UUID válido y soporte multimedia
   try {
-    const { data, error } = await supabase
+    const payload: Record<string, any> = {
+      id: validId,
+      publicacion_id: dto.publicacionId,
+      emisor_id: dto.emisorId,
+      receptor_id: dto.receptorId || null,
+      contenido: newMessage.contenido,
+      leido: false,
+    };
+
+    if (dto.multimediaUrl) {
+      payload.multimedia_url = dto.multimediaUrl;
+      payload.multimedia_tipo = dto.multimediaTipo || "imagen";
+    }
+
+    let { data, error } = await supabase
       .from("mensaje_trueque")
-      .insert({
-        id: validId,
-        publicacion_id: dto.publicacionId,
-        emisor_id: dto.emisorId,
-        receptor_id: dto.receptorId || null,
-        contenido: cleanContent,
-        leido: false,
-      })
+      .insert(payload)
       .select()
       .single();
+
+    // Fallback defensivo si la columna multimedia_url no ha sido agregada en Supabase
+    if (error && (error.code === "PGRST204" || error.message?.includes("multimedia_url"))) {
+      console.warn("[chatService] Columna multimedia_url no existe aún en Supabase, guardando campos estándar.");
+      delete payload.multimedia_url;
+      delete payload.multimedia_tipo;
+      const retry = await supabase
+        .from("mensaje_trueque")
+        .insert(payload)
+        .select()
+        .single();
+      data = retry.data;
+      error = retry.error;
+    }
 
     if (!error && data) {
       return {
@@ -204,6 +235,48 @@ export async function sendChatMessage(dto: SendMessageDTO): Promise<TradeChatMes
   }
 
   return newMessage;
+}
+
+/**
+ * Marca mensajes de una conversación como leídos
+ */
+export async function markMessagesAsRead(
+  publicacionId: string,
+  currentUserId: string
+): Promise<void> {
+  if (!publicacionId || !currentUserId) return;
+
+  const current = getLocalMessages();
+  let changed = false;
+  const updated = current.map((m) => {
+    if (m.publicacionId === publicacionId && m.emisorId !== currentUserId && !m.leido) {
+      changed = true;
+      return { ...m, leido: true };
+    }
+    return m;
+  });
+
+  if (changed) {
+    saveLocalMessages(updated);
+    if (typeof window !== "undefined") {
+      window.dispatchEvent(
+        new CustomEvent("truekly_chat_read", {
+          detail: { publicacionId },
+        })
+      );
+    }
+  }
+
+  try {
+    await supabase
+      .from("mensaje_trueque")
+      .update({ leido: true })
+      .eq("publicacion_id", publicacionId)
+      .neq("emisor_id", currentUserId)
+      .eq("leido", false);
+  } catch (err) {
+    console.warn("[chatService] Error al marcar leídos en Supabase:", err);
+  }
 }
 
 /**
@@ -235,6 +308,8 @@ export async function fetchMessagesByPublication(
         emisorId: d.emisor_id,
         receptorId: d.receptor_id,
         contenido: d.contenido,
+        multimediaUrl: d.multimedia_url || undefined,
+        multimediaTipo: d.multimedia_tipo || undefined,
         leido: d.leido,
         createdAt: d.created_at,
       }));
@@ -250,6 +325,8 @@ export async function fetchMessagesByPublication(
 
         map.set(m.id, {
           ...m,
+          multimediaUrl: m.multimediaUrl || existing?.multimediaUrl,
+          multimediaTipo: m.multimediaTipo || existing?.multimediaTipo,
           emisorNombre: resolvedName || m.emisorNombre,
         });
       });
@@ -293,6 +370,8 @@ export async function fetchAllUserConversations(
         emisorId: d.emisor_id,
         receptorId: d.receptor_id,
         contenido: d.contenido,
+        multimediaUrl: d.multimedia_url || undefined,
+        multimediaTipo: d.multimedia_tipo || undefined,
         leido: d.leido,
         createdAt: d.created_at,
       }));
@@ -308,6 +387,8 @@ export async function fetchAllUserConversations(
 
         map.set(m.id, {
           ...m,
+          multimediaUrl: m.multimediaUrl || existing?.multimediaUrl,
+          multimediaTipo: m.multimediaTipo || existing?.multimediaTipo,
           emisorNombre: resolvedName || m.emisorNombre,
         });
       });
@@ -338,6 +419,15 @@ export function subscribeToTradeChat(
     }
   };
 
+  const handleReadEvent = (e: Event) => {
+    const custom = e as CustomEvent<{ publicacionId: string }>;
+    if (custom.detail && (!publicacionId || custom.detail.publicacionId === publicacionId)) {
+      const local = getLocalMessages();
+      const last = local[local.length - 1];
+      if (last) onMessageReceived(last);
+    }
+  };
+
   const handleStorageEvent = (e: StorageEvent) => {
     if (e.key === STORAGE_KEY && e.newValue) {
       try {
@@ -352,6 +442,7 @@ export function subscribeToTradeChat(
 
   if (typeof window !== "undefined") {
     window.addEventListener("truekly_chat_message", handleCustomEvent);
+    window.addEventListener("truekly_chat_read", handleReadEvent);
     window.addEventListener("storage", handleStorageEvent);
   }
 
@@ -365,7 +456,7 @@ export function subscribeToTradeChat(
         .on(
           "postgres_changes",
           {
-            event: "INSERT",
+            event: "*",
             schema: "public",
             table: "mensaje_trueque",
             filter: filterStr,
@@ -378,6 +469,8 @@ export function subscribeToTradeChat(
                 emisorId: payload.new.emisor_id,
                 receptorId: payload.new.receptor_id,
                 contenido: payload.new.contenido,
+                multimediaUrl: payload.new.multimedia_url || undefined,
+                multimediaTipo: payload.new.multimedia_tipo || undefined,
                 leido: payload.new.leido,
                 createdAt: payload.new.created_at,
               });
@@ -412,6 +505,7 @@ export function subscribeToTradeChat(
   return () => {
     if (typeof window !== "undefined") {
       window.removeEventListener("truekly_chat_message", handleCustomEvent);
+      window.removeEventListener("truekly_chat_read", handleReadEvent);
       window.removeEventListener("storage", handleStorageEvent);
       if (pollInterval) clearInterval(pollInterval);
     }

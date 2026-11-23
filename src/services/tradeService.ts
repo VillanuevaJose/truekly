@@ -1,7 +1,12 @@
 import { supabase } from "../lib/supabaseClient.ts";
 import { generateUUID } from "./chatService.ts";
 
-export type TradeStatus = "pendiente" | "confirmado_parcial" | "completada" | "cancelada";
+export type TradeStatus =
+  | "pendiente"
+  | "pactado"
+  | "confirmado_parcial"
+  | "completada"
+  | "cancelada";
 
 export interface TradeProposal {
   id: string;
@@ -53,23 +58,29 @@ function saveLocalTrades(trades: TradeProposal[]): void {
 }
 
 /**
- * Calcula el estado y acción requerida del usuario en el handshake presencial
+ * Calcula el estado y acción requerida del usuario en el pacto y handshake presencial
  */
 export function computeHandshakeStatus(
   trade: TradeProposal,
   currentUserId?: string
 ): {
   badgeLabel: string;
-  badgeVariant: "pending" | "waiting" | "completed" | "cancelled";
+  badgeVariant: "pending" | "waiting" | "pactado" | "completed" | "cancelled";
   canConfirm: boolean;
+  canAcceptPact: boolean;
+  canConfirmDelivery: boolean;
   isCompleted: boolean;
+  isPactado: boolean;
 } {
   if (trade.estado === "completada") {
     return {
       badgeLabel: "Trueque completado",
       badgeVariant: "completed",
       canConfirm: false,
+      canAcceptPact: false,
+      canConfirmDelivery: false,
       isCompleted: true,
+      isPactado: true,
     };
   }
 
@@ -78,30 +89,126 @@ export function computeHandshakeStatus(
       badgeLabel: "Cancelado",
       badgeVariant: "cancelled",
       canConfirm: false,
+      canAcceptPact: false,
+      canConfirmDelivery: false,
       isCompleted: false,
+      isPactado: false,
     };
   }
 
   const isProponente = currentUserId === trade.proponenteId;
+
+  // Fase 1: Estado 'pendiente' (Propuesta enviada, esperando que la otra parte acepte los términos del pacto)
+  if (trade.estado === "pendiente") {
+    if (isProponente && trade.confirmadoProponente) {
+      return {
+        badgeLabel: "Esperando que la contraparte acepte el pacto",
+        badgeVariant: "waiting",
+        canConfirm: false,
+        canAcceptPact: false,
+        canConfirmDelivery: false,
+        isCompleted: false,
+        isPactado: false,
+      };
+    }
+    // Si soy el receptor o proponente sin confirmar (compatible con pruebas)
+    return {
+      badgeLabel: "Propuesta de trueque recibida — Pendiente de aceptación",
+      badgeVariant: "pending",
+      canConfirm: true,
+      canAcceptPact: true,
+      canConfirmDelivery: false,
+      isCompleted: false,
+      isPactado: false,
+    };
+  }
+
+  // Fase 2: Estado 'pactado' (Ambos aceptaron los objetos y lugar, listos para entrega física)
+  if (trade.estado === "pactado") {
+    return {
+      badgeLabel: "Pacto formal acordado — Coordinar entrega en punto seguro",
+      badgeVariant: "pactado",
+      canConfirm: true,
+      canAcceptPact: false,
+      canConfirmDelivery: true,
+      isCompleted: false,
+      isPactado: true,
+    };
+  }
+
+  // Fase 3: Estado 'confirmado_parcial' (Entrega física en persona)
   const userConfirmed = isProponente
     ? trade.confirmadoProponente
     : trade.confirmadoReceptor;
 
   if (userConfirmed) {
     return {
-      badgeLabel: "Esperando confirmación de la otra parte",
+      badgeLabel: "Entrega física confirmada por ti (1/2) — Esperando contraparte",
       badgeVariant: "waiting",
       canConfirm: false,
+      canAcceptPact: false,
+      canConfirmDelivery: false,
       isCompleted: false,
+      isPactado: true,
     };
   }
 
   return {
-    badgeLabel: "Pendiente de tu confirmación",
+    badgeLabel: "Contraparte confirmó entrega física (1/2) — Confirma para finalizar",
     badgeVariant: "pending",
     canConfirm: true,
+    canAcceptPact: false,
+    canConfirmDelivery: true,
     isCompleted: false,
+    isPactado: true,
   };
+}
+
+/**
+ * Acepta formalmente la propuesta de pacto de trueque (Fase 1: Ambos de acuerdo)
+ */
+export async function acceptTradePact(
+  proposalId: string,
+  _userId: string
+): Promise<TradeProposal | null> {
+  const local = getLocalTrades();
+  let updatedTrade: TradeProposal | null = null;
+
+  const updated = local.map((t) => {
+    if (t.id === proposalId) {
+      updatedTrade = {
+        ...t,
+        confirmadoReceptor: true,
+        estado: "pactado" as TradeStatus,
+      };
+      return updatedTrade;
+    }
+    return t;
+  });
+
+  saveLocalTrades(updated);
+
+  if (typeof window !== "undefined" && updatedTrade) {
+    window.dispatchEvent(
+      new CustomEvent("truekly_trade_updated", {
+        detail: updatedTrade,
+      })
+    );
+  }
+
+  try {
+    await supabase
+      .from("propuesta_trueque")
+      .update({
+        confirmado_receptor: true,
+        estado: "pactado",
+      })
+      .eq("id", proposalId);
+  } catch (err) {
+    console.warn("[tradeService] Error al actualizar estado pactado en Supabase:", err);
+  }
+
+  return updatedTrade;
 }
 
 /**
@@ -293,3 +400,41 @@ export async function fetchUserTrades(userId: string): Promise<TradeProposal[]> 
 
   return local;
 }
+
+/**
+ * Cancela o rechaza una propuesta de trueque
+ */
+export async function cancelTradeProposal(
+  proposalId: string,
+  _userId: string
+): Promise<void> {
+  const local = getLocalTrades();
+  const updated = local.map((t) => {
+    if (t.id === proposalId) {
+      return { ...t, estado: "cancelada" as TradeStatus };
+    }
+    return t;
+  });
+  saveLocalTrades(updated);
+
+  if (typeof window !== "undefined") {
+    const updatedTrade = updated.find((t) => t.id === proposalId);
+    if (updatedTrade) {
+      window.dispatchEvent(
+        new CustomEvent("truekly_trade_updated", {
+          detail: updatedTrade,
+        })
+      );
+    }
+  }
+
+  try {
+    await supabase
+      .from("propuesta_trueque")
+      .update({ estado: "cancelada" })
+      .eq("id", proposalId);
+  } catch (err) {
+    console.warn("[tradeService] Error al cancelar propuesta en Supabase:", err);
+  }
+}
+
