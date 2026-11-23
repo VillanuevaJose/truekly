@@ -100,6 +100,18 @@ export function computeHandshakeStatus(
 
   // Fase 1: Estado 'pendiente' (Propuesta enviada, esperando que la otra parte acepte los términos del pacto)
   if (trade.estado === "pendiente") {
+    if (trade.confirmadoReceptor) {
+      return {
+        badgeLabel: "Pacto formal acordado — Coordinar entrega en punto seguro",
+        badgeVariant: "pactado",
+        canConfirm: true,
+        canAcceptPact: false,
+        canConfirmDelivery: true,
+        isCompleted: false,
+        isPactado: true,
+      };
+    }
+
     if (isProponente && trade.confirmadoProponente) {
       return {
         badgeLabel: "Esperando que la contraparte acepte el pacto",
@@ -178,7 +190,8 @@ export async function acceptTradePact(
     if (t.id === proposalId) {
       updatedTrade = {
         ...t,
-        confirmadoReceptor: true,
+        confirmadoProponente: false,
+        confirmadoReceptor: false,
         estado: "pactado" as TradeStatus,
       };
       return updatedTrade;
@@ -197,13 +210,26 @@ export async function acceptTradePact(
   }
 
   try {
-    await supabase
+    const { error: errPactado } = await supabase
       .from("propuesta_trueque")
       .update({
-        confirmado_receptor: true,
+        confirmado_proponente: false,
+        confirmado_receptor: false,
         estado: "pactado",
+        updated_at: new Date().toISOString(),
       })
       .eq("id", proposalId);
+
+    if (errPactado) {
+      await supabase
+        .from("propuesta_trueque")
+        .update({
+          confirmado_receptor: true,
+          estado: "confirmado_parcial",
+          updated_at: new Date().toISOString(),
+        })
+        .eq("id", proposalId);
+    }
   } catch (err) {
     console.warn("[tradeService] Error al actualizar estado pactado en Supabase:", err);
   }
@@ -363,6 +389,32 @@ export async function confirmTradeHandshake(
     }
   }
 
+  // Persistir en Supabase para sincronización bidireccional entre ventanas
+  try {
+    await supabase
+      .from("propuesta_trueque")
+      .update({
+        confirmado_proponente: cProp,
+        confirmado_receptor: cRec,
+        estado: resultEstado,
+        fecha_cierre: resultEstado === "completada" ? new Date().toISOString() : null,
+        updated_at: new Date().toISOString(),
+      })
+      .eq("id", proposalId);
+
+    if (resultEstado === "completada" && target) {
+      await supabase
+        .from("publicacion")
+        .update({
+          estado_publicacion: "intercambiado",
+          fecha_actualizacion: new Date().toISOString(),
+        })
+        .in("id", [target.publicacionOfertadaId, target.publicacionSolicitadaId]);
+    }
+  } catch (syncErr) {
+    console.warn("[tradeService] Error al sincronizar fallback en Supabase:", syncErr);
+  }
+
   return {
     success: true,
     estado: resultEstado,
@@ -389,23 +441,29 @@ export async function fetchUserTrades(userId: string): Promise<TradeProposal[]> 
       .order("created_at", { ascending: false });
 
     if (!error && data) {
-      const remote: TradeProposal[] = data.map((d: any) => ({
-        id: d.id,
-        proponenteId: d.proponente_id,
-        receptorId: d.receptor_id,
-        publicacionOfertadaId: d.publicacion_ofertada_id,
-        publicacionSolicitadaId: d.publicacion_solicitada_id,
-        tituloOfertado: d.titulo_ofertado,
-        tituloSolicitado: d.titulo_solicitado,
-        imagenOfertada: d.imagen_ofertada,
-        imagenSolicitada: d.imagen_solicitada,
-        puntoEncuentro: d.punto_encuentro,
-        confirmadoProponente: d.confirmado_proponente,
-        confirmadoReceptor: d.confirmado_receptor,
-        estado: d.estado,
-        createdAt: d.created_at,
-        fechaCierre: d.fecha_cierre,
-      }));
+      const remote: TradeProposal[] = data.map((d: any) => {
+        let est: TradeStatus = d.estado;
+        if (d.confirmado_receptor && d.estado === "pendiente") {
+          est = "pactado";
+        }
+        return {
+          id: d.id,
+          proponenteId: d.proponente_id,
+          receptorId: d.receptor_id,
+          publicacionOfertadaId: d.publicacion_ofertada_id,
+          publicacionSolicitadaId: d.publicacion_solicitada_id,
+          tituloOfertado: d.titulo_ofertado,
+          tituloSolicitado: d.titulo_solicitado,
+          imagenOfertada: d.imagen_ofertada,
+          imagenSolicitada: d.imagen_solicitada,
+          puntoEncuentro: d.punto_encuentro,
+          confirmadoProponente: d.confirmado_proponente,
+          confirmadoReceptor: d.confirmado_receptor,
+          estado: est,
+          createdAt: d.created_at,
+          fechaCierre: d.fecha_cierre,
+        };
+      });
 
       const map = new Map<string, TradeProposal>();
       remote.forEach((t) => map.set(t.id, t));

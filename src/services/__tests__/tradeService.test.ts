@@ -109,3 +109,56 @@ test("computeHandshakeStatus - propuesta cancelada bloquea confirmación", () =>
   assert.strictEqual(status.canConfirm, false);
   assert.strictEqual(status.badgeVariant, "cancelled");
 });
+
+test("computeHandshakeStatus - estado pactado habilita confirmacion de entrega presencial", () => {
+  const proposal: TradeProposal = {
+    id: "trade-5",
+    proponenteId: "user-a",
+    receptorId: "user-b",
+    publicacionOfertadaId: "pub-1",
+    publicacionSolicitadaId: "pub-2",
+    tituloOfertado: "Audífonos Sony",
+    tituloSolicitado: "Teclado Mecánico",
+    imagenOfertada: "https://example.com/a.jpg",
+    imagenSolicitada: "https://example.com/b.jpg",
+    puntoEncuentro: "Plaza de Armas",
+    confirmadoProponente: false,
+    confirmadoReceptor: false,
+    estado: "pactado",
+    createdAt: new Date().toISOString(),
+  };
+
+  const statusForA = computeHandshakeStatus(proposal, "user-a");
+  assert.strictEqual(statusForA.isPactado, true);
+  assert.strictEqual(statusForA.canConfirmDelivery, true);
+  assert.strictEqual(statusForA.badgeVariant, "pactado");
+
+  const statusForB = computeHandshakeStatus(proposal, "user-b");
+  assert.strictEqual(statusForB.isPactado, true);
+  assert.strictEqual(statusForB.canConfirmDelivery, true);
+  assert.strictEqual(statusForB.badgeVariant, "pactado");
+});
+
+test("computeHandshakeStatus - si confirmadoReceptor es true en pendiente, transiciona a pactado", () => {
+  const proposal: TradeProposal = {
+    id: "trade-6",
+    proponenteId: "user-a",
+    receptorId: "user-b",
+    publicacionOfertadaId: "pub-1",
+    publicacionSolicitadaId: "pub-2",
+    tituloOfertado: "Audífonos Sony",
+    tituloSolicitado: "Teclado Mecánico",
+    imagenOfertada: "https://example.com/a.jpg",
+    imagenSolicitada: "https://example.com/b.jpg",
+    puntoEncuentro: "Plaza de Armas",
+    confirmadoProponente: true,
+    confirmadoReceptor: true,
+    estado: "pendiente",
+    createdAt: new Date().toISOString(),
+  };
+
+  const status = computeHandshakeStatus(proposal, "user-a");
+  assert.strictEqual(status.isPactado, true);
+  assert.strictEqual(status.canConfirmDelivery, true);
+  assert.strictEqual(status.badgeVariant, "pactado");
+});

@@ -456,6 +456,8 @@ export default function ProfilePage({ onBack, onNavigateToFeed }: ProfilePagePro
                             className={`inline-flex items-center gap-1 rounded-full px-2.5 py-0.5 text-[11px] font-semibold border ${
                               status.badgeVariant === "completed"
                                 ? "bg-jade-50 text-jade-700 border-jade-200"
+                                : status.badgeVariant === "pactado"
+                                ? "bg-jade-50 text-jade-800 border-jade-300"
                                 : status.badgeVariant === "waiting"
                                 ? "bg-amber-50 text-amber-700 border-amber-200"
                                 : status.badgeVariant === "cancelled"

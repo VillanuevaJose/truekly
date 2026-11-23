@@ -38,6 +38,7 @@ import {
   confirmTradeHandshake,
   computeHandshakeStatus,
   type TradeProposal,
+  type TradeStatus,
 } from "../services/tradeService";
 
 interface MessagesPageProps {
@@ -199,6 +200,19 @@ export default function MessagesPage({
           return [...prev, incoming];
         });
       }
+
+      // Refrescar propuestas inmediatamente si el mensaje entrante es de pacto o entrega
+      if (
+        incoming.contenido.includes("Pacto formal") ||
+        incoming.contenido.includes("He propuesto formalmente") ||
+        incoming.contenido.includes("entrega física") ||
+        incoming.contenido.includes("finalizado con éxito") ||
+        incoming.contenido.includes("cancelada")
+      ) {
+        if (user?.id) {
+          fetchUserTrades(user.id).then(setUserTrades);
+        }
+      }
     });
 
     const handleTradeEvent = () => {
@@ -292,7 +306,29 @@ export default function MessagesPage({
         matchingTrades.sort(
           (a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
         );
-        const trade = matchingTrades[0] || null;
+        let trade = matchingTrades[0] || null;
+
+        // Deducir el estado verificado para el hilo a partir de los mensajes confirmados en tiempo real
+        const threadMsgs = allMessages.filter((m) => m.publicacionId === msg.publicacionId);
+        const hasThreadCompleted = threadMsgs.some((m) =>
+          m.contenido.includes("Trueque finalizado con éxito")
+        );
+        const hasThreadPact = threadMsgs.some((m) =>
+          m.contenido.includes("Pacto formal de trueque aceptado")
+        );
+        const hasThreadCancel = threadMsgs.some((m) =>
+          m.contenido.includes("propuesta de trueque ha sido cancelada")
+        );
+
+        if (trade) {
+          if (hasThreadCancel && trade.estado !== "completada") {
+            trade = { ...trade, estado: "cancelada" };
+          } else if (hasThreadCompleted || trade.estado === "completada") {
+            trade = { ...trade, estado: "completada" };
+          } else if (hasThreadPact || trade.estado === "pactado" || trade.confirmadoReceptor) {
+            trade = { ...trade, estado: "pactado" };
+          }
+        }
 
         const isUserOwner = Boolean(user?.id && pub.userId && pub.userId === user.id);
         const counterparty = isUserOwner
@@ -323,7 +359,16 @@ export default function MessagesPage({
         matchingTrades.sort(
           (a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
         );
-        const trade = matchingTrades[0] || null;
+        let trade = matchingTrades[0] || null;
+
+        const initMsgs = allMessages.filter((m) => m.publicacionId === pub.id);
+        if (trade) {
+          if (initMsgs.some((m) => m.contenido.includes("Trueque finalizado con éxito")) || trade.estado === "completada") {
+            trade = { ...trade, estado: "completada" };
+          } else if (initMsgs.some((m) => m.contenido.includes("Pacto formal de trueque aceptado")) || trade.estado === "pactado" || trade.confirmadoReceptor) {
+            trade = { ...trade, estado: "pactado" };
+          }
+        }
 
         threadMap.set(initialPublicationId, {
           publication: pub,
@@ -362,16 +407,96 @@ export default function MessagesPage({
     user?.id && selectedProduct?.userId && selectedProduct.userId === user.id
   );
 
-  const activeTrade = userTrades
-    .filter(
-      (t) =>
-        (t.publicacionSolicitadaId === selectedPubId ||
-          t.publicacionOfertadaId === selectedPubId) &&
-        t.estado !== "cancelada"
-    )
-    .sort(
-      (a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
-    )[0] || null;
+  const rawActiveTrade = React.useMemo(() => {
+    const list = userTrades
+      .filter(
+        (t) =>
+          (t.publicacionSolicitadaId === selectedPubId ||
+            t.publicacionOfertadaId === selectedPubId) &&
+          t.estado !== "cancelada"
+      )
+      .sort(
+        (a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
+      );
+    return list[0] || null;
+  }, [userTrades, selectedPubId]);
+
+  // Sincronización reactiva del estado del pacto y handshake con los mensajes del chat
+  const activeTrade = React.useMemo(() => {
+    if (!rawActiveTrade) return null;
+
+    const hasCancelMsg = activeMessages.some((m) =>
+      m.contenido.includes("propuesta de trueque ha sido cancelada")
+    );
+    if (hasCancelMsg && rawActiveTrade.estado !== "completada") {
+      return { ...rawActiveTrade, estado: "cancelada" as TradeStatus };
+    }
+
+    const hasCompletionMsg = activeMessages.some((m) =>
+      m.contenido.includes("Trueque finalizado con éxito")
+    );
+    if (hasCompletionMsg || rawActiveTrade.estado === "completada") {
+      return {
+        ...rawActiveTrade,
+        confirmadoProponente: true,
+        confirmadoReceptor: true,
+        estado: "completada" as TradeStatus,
+      };
+    }
+
+    const hasPactAcceptedMsg = activeMessages.some((m) =>
+      m.contenido.includes("Pacto formal de trueque aceptado por ambas partes")
+    );
+    const hasMyDeliveryConfirm = activeMessages.some(
+      (m) =>
+        m.emisorId === user?.id &&
+        m.contenido.includes("He confirmado la entrega física presencial")
+    );
+    const hasOtherDeliveryConfirm = activeMessages.some(
+      (m) =>
+        m.emisorId &&
+        m.emisorId !== user?.id &&
+        m.contenido.includes("He confirmado la entrega física presencial")
+    );
+
+    if (
+      hasPactAcceptedMsg ||
+      rawActiveTrade.estado === "pactado" ||
+      rawActiveTrade.confirmadoReceptor ||
+      rawActiveTrade.estado === "confirmado_parcial"
+    ) {
+      const isProp = user?.id === rawActiveTrade.proponenteId;
+      const myConfirmed = isProp ? hasMyDeliveryConfirm : hasOtherDeliveryConfirm;
+      const otherConfirmed = isProp ? hasOtherDeliveryConfirm : hasMyDeliveryConfirm;
+
+      if (hasMyDeliveryConfirm && hasOtherDeliveryConfirm) {
+        return {
+          ...rawActiveTrade,
+          confirmadoProponente: true,
+          confirmadoReceptor: true,
+          estado: "completada" as TradeStatus,
+        };
+      }
+
+      if (hasMyDeliveryConfirm || hasOtherDeliveryConfirm || rawActiveTrade.estado === "confirmado_parcial") {
+        return {
+          ...rawActiveTrade,
+          confirmadoProponente: isProp ? myConfirmed : otherConfirmed,
+          confirmadoReceptor: !isProp ? myConfirmed : otherConfirmed,
+          estado: "confirmado_parcial" as TradeStatus,
+        };
+      }
+
+      return {
+        ...rawActiveTrade,
+        confirmadoProponente: false,
+        confirmadoReceptor: false,
+        estado: "pactado" as TradeStatus,
+      };
+    }
+
+    return rawActiveTrade;
+  }, [rawActiveTrade, activeMessages, user?.id]);
 
   const otherUserName = isOwner
     ? selectedThread?.counterpartyName || "Interesado en tu artículo"
