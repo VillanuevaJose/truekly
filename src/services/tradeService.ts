@@ -1,4 +1,5 @@
 import { supabase } from "../lib/supabaseClient.ts";
+import { generateUUID } from "./chatService.ts";
 
 export type TradeStatus = "pendiente" | "confirmado_parcial" | "completada" | "cancelada";
 
@@ -109,8 +110,9 @@ export function computeHandshakeStatus(
 export async function createTradeProposal(
   dto: CreateTradeProposalDTO
 ): Promise<TradeProposal> {
+  const proposalId = generateUUID();
   const newTrade: TradeProposal = {
-    id: `trade-${Date.now()}`,
+    id: proposalId,
     proponenteId: dto.proponenteId,
     receptorId: dto.receptorId,
     publicacionOfertadaId: dto.publicacionOfertadaId,
@@ -129,11 +131,19 @@ export async function createTradeProposal(
   const local = getLocalTrades();
   saveLocalTrades([newTrade, ...local]);
 
+  if (typeof window !== "undefined") {
+    window.dispatchEvent(
+      new CustomEvent("truekly_trade_updated", {
+        detail: newTrade,
+      })
+    );
+  }
+
   try {
     const { data, error } = await supabase
       .from("propuesta_trueque")
       .insert({
-        id: newTrade.id,
+        id: proposalId,
         proponente_id: dto.proponenteId,
         receptor_id: dto.receptorId,
         publicacion_ofertada_id: dto.publicacionOfertadaId,
@@ -208,11 +218,23 @@ export async function confirmTradeHandshake(
         confirmadoProponente: cProp,
         confirmadoReceptor: cRec,
         estado: resultEstado,
+        fechaCierre: resultEstado === "completada" ? new Date().toISOString() : t.fechaCierre,
       };
     }
     return t;
   });
   saveLocalTrades(updated);
+
+  if (typeof window !== "undefined") {
+    const updatedTrade = updated.find((t) => t.id === proposalId);
+    if (updatedTrade) {
+      window.dispatchEvent(
+        new CustomEvent("truekly_trade_updated", {
+          detail: updatedTrade,
+        })
+      );
+    }
+  }
 
   return {
     success: true,

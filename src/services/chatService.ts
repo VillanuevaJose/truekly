@@ -32,7 +32,29 @@ export interface ConversationSummary {
 }
 
 const STORAGE_KEY = "truekly_trade_chat_messages";
+const USER_NAMES_KEY = "truekly_user_names_cache";
 let memoryStorage: TradeChatMessage[] = [];
+
+export function cacheUserName(userId: string, name: string): void {
+  if (!userId || !name || typeof window === "undefined" || !window.localStorage) return;
+  try {
+    const raw = localStorage.getItem(USER_NAMES_KEY);
+    const map = raw ? JSON.parse(raw) : {};
+    map[userId] = name;
+    localStorage.setItem(USER_NAMES_KEY, JSON.stringify(map));
+  } catch {}
+}
+
+export function getCachedUserName(userId: string): string | undefined {
+  if (!userId || typeof window === "undefined" || !window.localStorage) return undefined;
+  try {
+    const raw = localStorage.getItem(USER_NAMES_KEY);
+    const map = raw ? JSON.parse(raw) : {};
+    return map[userId];
+  } catch {
+    return undefined;
+  }
+}
 
 /**
  * Generador seguro de UUID v4 estándar compatible con PostgreSQL y navegadores
@@ -141,6 +163,9 @@ export async function sendChatMessage(dto: SendMessageDTO): Promise<TradeChatMes
 
   const current = getLocalMessages();
   saveLocalMessages([...current, newMessage]);
+  if (dto.emisorId && dto.emisorNombre) {
+    cacheUserName(dto.emisorId, dto.emisorNombre);
+  }
 
   if (typeof window !== "undefined") {
     window.dispatchEvent(
@@ -218,9 +243,14 @@ export async function fetchMessagesByPublication(
       local.forEach((m) => map.set(m.id, m));
       remote.forEach((m) => {
         const existing = map.get(m.id);
+        const resolvedName =
+          existing?.emisorNombre ||
+          getCachedUserName(m.emisorId) ||
+          (userId && m.emisorId === userId ? "Tú" : undefined);
+
         map.set(m.id, {
           ...m,
-          emisorNombre: existing?.emisorNombre || m.emisorNombre,
+          emisorNombre: resolvedName || m.emisorNombre,
         });
       });
 
@@ -269,7 +299,18 @@ export async function fetchAllUserConversations(
 
       const map = new Map<string, TradeChatMessage>();
       local.forEach((m) => map.set(m.id, m));
-      remote.forEach((m) => map.set(m.id, m));
+      remote.forEach((m) => {
+        const existing = map.get(m.id);
+        const resolvedName =
+          existing?.emisorNombre ||
+          getCachedUserName(m.emisorId) ||
+          (m.emisorId === userId ? "Tú" : undefined);
+
+        map.set(m.id, {
+          ...m,
+          emisorNombre: resolvedName || m.emisorNombre,
+        });
+      });
       const combined = Array.from(map.values()).sort(
         (a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime()
       );
@@ -314,40 +355,42 @@ export function subscribeToTradeChat(
     window.addEventListener("storage", handleStorageEvent);
   }
 
-  // Canal Realtime de Supabase
+  // Canal Realtime de Supabase (solo en entorno navegador)
   let channel: any = null;
-  try {
-    const filterStr = publicacionId ? `publicacion_id=eq.${publicacionId}` : undefined;
-    channel = supabase
-      .channel(`chat_sub_${publicacionId || "global"}_${Date.now()}`)
-      .on(
-        "postgres_changes",
-        {
-          event: "INSERT",
-          schema: "public",
-          table: "mensaje_trueque",
-          filter: filterStr,
-        },
-        (payload: any) => {
-          if (payload.new) {
-            onMessageReceived({
-              id: payload.new.id,
-              publicacionId: payload.new.publicacion_id,
-              emisorId: payload.new.emisor_id,
-              receptorId: payload.new.receptor_id,
-              contenido: payload.new.contenido,
-              leido: payload.new.leido,
-              createdAt: payload.new.created_at,
-            });
+  if (typeof window !== "undefined") {
+    try {
+      const filterStr = publicacionId ? `publicacion_id=eq.${publicacionId}` : undefined;
+      channel = supabase
+        .channel(`chat_sub_${publicacionId || "global"}_${Date.now()}`)
+        .on(
+          "postgres_changes",
+          {
+            event: "INSERT",
+            schema: "public",
+            table: "mensaje_trueque",
+            filter: filterStr,
+          },
+          (payload: any) => {
+            if (payload.new) {
+              onMessageReceived({
+                id: payload.new.id,
+                publicacionId: payload.new.publicacion_id,
+                emisorId: payload.new.emisor_id,
+                receptorId: payload.new.receptor_id,
+                contenido: payload.new.contenido,
+                leido: payload.new.leido,
+                createdAt: payload.new.created_at,
+              });
+            }
           }
-        }
-      )
-      .subscribe();
-  } catch (err) {
-    console.warn("[chatService] Canal Realtime falló:", err);
+        )
+        .subscribe();
+    } catch (err) {
+      console.warn("[chatService] Canal Realtime falló:", err);
+    }
   }
 
-  // Polling de respaldo cada 3 segundos para sincronizar pestañas de incógnito
+  // Polling de respaldo cada 2.5 segundos para sincronizar pestañas de incógnito
   let pollInterval: any = null;
   if (typeof window !== "undefined") {
     pollInterval = setInterval(async () => {
@@ -359,7 +402,11 @@ export function subscribeToTradeChat(
           onMessageReceived(lastMsg);
         }
       } catch {}
-    }, 3000);
+    }, 2500);
+
+    if (pollInterval && typeof pollInterval.unref === "function") {
+      pollInterval.unref();
+    }
   }
 
   return () => {

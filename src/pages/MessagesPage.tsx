@@ -12,6 +12,7 @@ import {
   Package,
   Check,
   Loader2,
+  X,
 } from "lucide-react";
 import { useAuth } from "../context/AuthContext";
 import { fetchPublications } from "../services/publicationService";
@@ -26,6 +27,7 @@ import {
 } from "../services/chatService";
 import {
   fetchUserTrades,
+  createTradeProposal,
   confirmTradeHandshake,
   computeHandshakeStatus,
   type TradeProposal,
@@ -41,7 +43,16 @@ interface ChatThread {
   publication: Product;
   lastMessage: TradeChatMessage;
   tradeProposal?: TradeProposal | null;
+  counterpartyName: string;
 }
+
+const CHIMBOTE_SAFE_POINTS = [
+  "MegaPlaza Chimbote (Zona Bancaria)",
+  "Plaza de Armas de Chimbote (Frente a Comisaría)",
+  "Vivero Forestal de Chimbote (Entrada Principal)",
+  "Real Plaza Nuevo Chimbote",
+  "Terminal Terrestre El Chimbador",
+];
 
 export default function MessagesPage({
   onBack,
@@ -59,9 +70,16 @@ export default function MessagesPage({
   const [isSending, setIsSending] = useState(false);
   const [isConfirming, setIsConfirming] = useState(false);
   const [searchTerm, setSearchTerm] = useState("");
+
+  // Modal para proponer trueque
+  const [showProposalModal, setShowProposalModal] = useState(false);
+  const [offeredItemText, setOfferedItemText] = useState("");
+  const [selectedSafePoint, setSelectedSafePoint] = useState(CHIMBOTE_SAFE_POINTS[0]);
+  const [isCreatingProposal, setIsCreatingProposal] = useState(false);
+
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
-  // 1. Cargar publicaciones, mensajes del usuario y trueques
+  // 1. Carga inicial
   useEffect(() => {
     let isMounted = true;
     Promise.all([
@@ -82,9 +100,67 @@ export default function MessagesPage({
     return () => {
       isMounted = false;
     };
-  }, [user?.id, initialPublicationId]);
+  }, [user?.id, initialPublicationId, selectedPubId]);
 
-  // 2. Suscribirse a mensajes en tiempo real
+  // 2. Sincronización continua bidireccional cada 2.5 segundos (estilo WhatsApp)
+  useEffect(() => {
+    const currentUserId = user?.id;
+    if (!currentUserId) return;
+    let isMounted = true;
+
+    const syncInterval = setInterval(async () => {
+      try {
+        const [msgs, trades] = await Promise.all([
+          fetchAllUserConversations(currentUserId),
+          fetchUserTrades(currentUserId),
+        ]);
+        if (!isMounted) return;
+
+        setAllMessages((prev) => {
+          if (
+            prev.length !== msgs.length ||
+            (msgs.length > 0 && prev[prev.length - 1]?.id !== msgs[msgs.length - 1]?.id)
+          ) {
+            return msgs;
+          }
+          return prev;
+        });
+
+        setUserTrades((prev) => {
+          if (
+            prev.length !== trades.length ||
+            trades.some((t, i) => prev[i]?.id !== t.id || prev[i]?.estado !== t.estado)
+          ) {
+            return trades;
+          }
+          return prev;
+        });
+
+        if (selectedPubId) {
+          const chatMsgs = await fetchMessagesByPublication(selectedPubId, user.id);
+          if (!isMounted) return;
+          setActiveMessages((prev) => {
+            if (
+              prev.length !== chatMsgs.length ||
+              (chatMsgs.length > 0 && prev[prev.length - 1]?.id !== chatMsgs[chatMsgs.length - 1]?.id)
+            ) {
+              return chatMsgs;
+            }
+            return prev;
+          });
+        }
+      } catch {
+        // Silencioso para estabilidad
+      }
+    }, 2500);
+
+    return () => {
+      isMounted = false;
+      clearInterval(syncInterval);
+    };
+  }, [user?.id, selectedPubId]);
+
+  // 3. Suscripción a eventos reactivos de Supabase / Local
   useEffect(() => {
     if (!user?.id) return;
     const unsub = subscribeToTradeChat(selectedPubId || "", (incoming) => {
@@ -100,12 +176,20 @@ export default function MessagesPage({
       }
     });
 
+    const handleTradeEvent = () => {
+      if (user?.id) {
+        fetchUserTrades(user.id).then(setUserTrades);
+      }
+    };
+    window.addEventListener("truekly_trade_updated", handleTradeEvent);
+
     return () => {
       unsub();
+      window.removeEventListener("truekly_trade_updated", handleTradeEvent);
     };
   }, [selectedPubId, user?.id]);
 
-  // 3. Cargar mensajes del chat seleccionado
+  // 4. Cargar mensajes del chat seleccionado al cambiar
   useEffect(() => {
     if (!selectedPubId) {
       setActiveMessages([]);
@@ -132,8 +216,12 @@ export default function MessagesPage({
   const threads: ChatThread[] = React.useMemo(() => {
     const threadMap = new Map<string, ChatThread>();
 
-    // Añadir publicaciones con mensajes existentes
-    for (const msg of allMessages) {
+    // Ordenar de más reciente a más antiguo
+    const sortedDesc = [...allMessages].sort(
+      (a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
+    );
+
+    for (const msg of sortedDesc) {
       if (!threadMap.has(msg.publicacionId)) {
         const pub = publications.find((p) => p.id === msg.publicacionId) || {
           id: msg.publicacionId,
@@ -157,18 +245,27 @@ export default function MessagesPage({
             t.publicacionOfertadaId === msg.publicacionId
         );
 
+        const isUserOwner = Boolean(user?.id && pub.userId && pub.userId === user.id);
+        const counterparty = isUserOwner
+          ? (msg.emisorId !== user?.id && msg.emisorNombre
+              ? msg.emisorNombre
+              : "Interesado en tu artículo")
+          : pub.owner.name;
+
         threadMap.set(msg.publicacionId, {
           publication: pub,
           lastMessage: msg,
           tradeProposal: trade || null,
+          counterpartyName: counterparty,
         });
       }
     }
 
-    // Si hay un initialPublicationId seleccionado pero aún no tiene mensajes, agregarlo a la lista
+    // Si hay un initialPublicationId seleccionado pero aún no tiene mensajes
     if (initialPublicationId && !threadMap.has(initialPublicationId)) {
       const pub = publications.find((p) => p.id === initialPublicationId);
       if (pub) {
+        const isUserOwner = Boolean(user?.id && pub.userId && pub.userId === user.id);
         threadMap.set(initialPublicationId, {
           publication: pub,
           lastMessage: {
@@ -185,6 +282,7 @@ export default function MessagesPage({
               t.publicacionSolicitadaId === pub.id ||
               t.publicacionOfertadaId === pub.id
           ),
+          counterpartyName: isUserOwner ? "Interesado en tu artículo" : pub.owner.name,
         });
       }
     }
@@ -196,10 +294,11 @@ export default function MessagesPage({
     return list.filter(
       (t) =>
         t.publication.title.toLowerCase().includes(term) ||
+        t.counterpartyName.toLowerCase().includes(term) ||
         t.publication.owner.name.toLowerCase().includes(term) ||
         t.lastMessage.contenido.toLowerCase().includes(term)
     );
-  }, [allMessages, publications, userTrades, initialPublicationId, searchTerm]);
+  }, [allMessages, publications, userTrades, initialPublicationId, searchTerm, user]);
 
   const selectedThread = threads.find((t) => t.publication.id === selectedPubId);
   const selectedProduct = selectedThread?.publication;
@@ -208,9 +307,15 @@ export default function MessagesPage({
   const isOwner = Boolean(
     user?.id && selectedProduct?.userId && selectedProduct.userId === user.id
   );
+
+  // Obtener el interlocutor real
   const otherUserName = isOwner
-    ? selectedThread?.lastMessage.emisorNombre || "Interesado en tu artículo"
+    ? selectedThread?.counterpartyName || "Interesado en tu artículo"
     : selectedProduct?.owner.name || "Anunciante";
+
+  const otherUserAvatar = isOwner
+    ? "https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=150&auto=format&fit=crop&q=80"
+    : selectedProduct?.owner.avatar || "https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=100&auto=format&fit=crop&q=80";
 
   const handleSendMessage = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -219,9 +324,18 @@ export default function MessagesPage({
 
     setIsSending(true);
     try {
-      const targetUserId = isOwner
-        ? selectedThread?.lastMessage.emisorId || null
-        : selectedProduct?.userId || null;
+      let targetUserId: string | null = null;
+      if (isOwner) {
+        const counterMsg = activeMessages.find((m) => m.emisorId && m.emisorId !== user.id);
+        targetUserId =
+          counterMsg?.emisorId ||
+          activeTrade?.proponenteId ||
+          (selectedThread?.lastMessage.emisorId !== user.id
+            ? selectedThread?.lastMessage.emisorId || null
+            : null);
+      } else {
+        targetUserId = selectedProduct?.userId || activeTrade?.receptorId || null;
+      }
 
       const sent = await sendChatMessage({
         publicacionId: selectedPubId,
@@ -240,6 +354,83 @@ export default function MessagesPage({
       console.error("[MessagesPage] Error al enviar mensaje:", err);
     } finally {
       setIsSending(false);
+    }
+  };
+
+  const handleCreateProposal = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!user?.id || !selectedProduct || !offeredItemText.trim() || isCreatingProposal) return;
+
+    setIsCreatingProposal(true);
+    try {
+      const counterMsg = activeMessages.find((m) => m.emisorId && m.emisorId !== user.id);
+      const targetUserId = isOwner
+        ? counterMsg?.emisorId || null
+        : selectedProduct.userId || null;
+
+      const newProposal = await createTradeProposal({
+        proponenteId: user.id,
+        receptorId: targetUserId,
+        publicacionOfertadaId: `offered-${Date.now()}`,
+        publicacionSolicitadaId: selectedProduct.id,
+        tituloOfertado: offeredItemText.trim(),
+        tituloSolicitado: selectedProduct.title,
+        imagenOfertada:
+          user.fotoPerfil ||
+          "https://images.unsplash.com/photo-1526170375885-4d8ecf77b99f?w=400&auto=format&fit=crop&q=80",
+        imagenSolicitada: selectedProduct.image,
+        puntoEncuentro: selectedSafePoint,
+      });
+
+      setUserTrades((prev) => [newProposal, ...prev.filter((t) => t.id !== newProposal.id)]);
+
+      // Enviar mensaje en el chat informando la propuesta
+      await sendChatMessage({
+        publicacionId: selectedProduct.id,
+        emisorId: user.id,
+        emisorNombre: user.nombre || user.username || "Usuario",
+        receptorId: targetUserId,
+        contenido: `🔄 He propuesto un acuerdo de trueque presencial: "${offeredItemText.trim()}" a cambio de "${selectedProduct.title}" en ${selectedSafePoint}. Ambos debemos confirmar la entrega presencial cuando nos encontremos.`,
+      });
+
+      const updatedMsgs = await fetchMessagesByPublication(selectedProduct.id, user.id);
+      setActiveMessages(updatedMsgs);
+      setShowProposalModal(false);
+      setOfferedItemText("");
+    } catch (err) {
+      console.error("[MessagesPage] Error al crear propuesta:", err);
+    } finally {
+      setIsCreatingProposal(false);
+    }
+  };
+
+  const handleConfirmTrade = async () => {
+    if (!activeTrade || !user?.id || isConfirming) return;
+    setIsConfirming(true);
+    try {
+      await confirmTradeHandshake(activeTrade.id, user.id);
+      const updatedTrades = await fetchUserTrades(user.id);
+      setUserTrades(updatedTrades);
+
+      const counterMsg = activeMessages.find((m) => m.emisorId && m.emisorId !== user.id);
+      const targetUserId = isOwner
+        ? counterMsg?.emisorId || null
+        : selectedProduct?.userId || null;
+
+      await sendChatMessage({
+        publicacionId: selectedPubId || "",
+        emisorId: user.id,
+        emisorNombre: user.nombre || user.username || "Usuario",
+        receptorId: targetUserId,
+        contenido: `🤝 He confirmado la entrega física presencial del trueque en ${activeTrade.puntoEncuentro}.`,
+      });
+
+      if (selectedPubId) {
+        const msgs = await fetchMessagesByPublication(selectedPubId, user.id);
+        setActiveMessages(msgs);
+      }
+    } finally {
+      setIsConfirming(false);
     }
   };
 
@@ -321,8 +512,9 @@ export default function MessagesPage({
               ) : (
                 threads.map((thread) => {
                   const isSelected = thread.publication.id === selectedPubId;
-                  const isUserOwner =
-                    user?.id && thread.publication.userId === user.id;
+                  const isUserOwner = Boolean(
+                    user?.id && thread.publication.userId === user.id
+                  );
 
                   return (
                     <button
@@ -356,7 +548,7 @@ export default function MessagesPage({
                         <p className="text-[11px] text-sage-600 truncate mt-0.5">
                           {isUserOwner ? "Interesado: " : "Dueño: "}
                           <span className="font-medium text-ink">
-                            {thread.publication.owner.name}
+                            {thread.counterpartyName}
                           </span>
                         </p>
 
@@ -365,9 +557,17 @@ export default function MessagesPage({
                         </p>
 
                         {thread.tradeProposal && (
-                          <span className="inline-flex items-center gap-1 mt-1 text-[10px] font-semibold text-amber-700 bg-amber-50 px-1.5 py-0.5 rounded border border-amber-200">
+                          <span className={`inline-flex items-center gap-1 mt-1 text-[10px] font-semibold px-1.5 py-0.5 rounded border ${
+                            thread.tradeProposal.estado === "completada"
+                              ? "text-emerald-700 bg-emerald-50 border-emerald-200"
+                              : "text-amber-700 bg-amber-50 border-amber-200"
+                          }`}>
                             <Repeat className="h-2.5 w-2.5" />
-                            <span>Trueque en curso</span>
+                            <span>
+                              {thread.tradeProposal.estado === "completada"
+                                ? "Trueque completado"
+                                : "Trueque en curso"}
+                            </span>
                           </span>
                         )}
                       </div>
@@ -401,7 +601,7 @@ export default function MessagesPage({
 
                     <div className="relative h-10 w-10 shrink-0 overflow-hidden rounded-full border border-line bg-paper">
                       <img
-                        src={selectedProduct.owner.avatar}
+                        src={otherUserAvatar}
                         alt={otherUserName}
                         className="h-full w-full object-cover"
                       />
@@ -428,6 +628,16 @@ export default function MessagesPage({
                   </div>
 
                   <div className="flex items-center gap-2">
+                    {!activeTrade && (
+                      <button
+                        type="button"
+                        onClick={() => setShowProposalModal(true)}
+                        className="inline-flex items-center gap-1.5 rounded-xl border border-jade-600 bg-jade-50 px-3 py-1.5 text-xs font-bold text-jade-800 shadow-2xs hover:bg-jade-100 transition"
+                      >
+                        <Repeat className="h-3.5 w-3.5 text-jade-700" />
+                        <span>Pactar Trueque</span>
+                      </button>
+                    )}
                     <span className="hidden sm:inline-flex items-center gap-1 rounded-full bg-jade-50 px-2.5 py-1 text-[11px] font-semibold text-jade-700 border border-jade-200">
                       <CheckCircle2 className="h-3 w-3" />
                       <span>Chat Directo</span>
@@ -455,21 +665,31 @@ export default function MessagesPage({
 
                   <span className="inline-flex shrink-0 items-center gap-1 text-[11px] text-sage-500">
                     <MapPin className="h-3 w-3 text-jade-600" />
-                    <span>{selectedProduct.safePointRecommended || "Plaza de Armas"}</span>
+                    <span>{selectedProduct.safePointRecommended || "MegaPlaza Chimbote"}</span>
                   </span>
                 </div>
 
                 {/* Widget de Handshake si hay propuesta activa */}
-                {activeTrade && handshakeStatus && (
-                  <div className="border-b border-line bg-amber-50/80 px-4 py-2.5">
-                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
-                      <div className="space-y-0.5">
-                        <div className="flex items-center gap-1.5 text-xs font-semibold text-amber-900">
-                          <Repeat className="h-3.5 w-3.5 text-amber-700" />
-                          <span>Acuerdo de trueque presencial</span>
+                {activeTrade && handshakeStatus ? (
+                  <div className={`border-b px-4 py-3 ${
+                    handshakeStatus.isCompleted
+                      ? "bg-emerald-50/90 border-emerald-200"
+                      : "bg-amber-50/90 border-amber-200"
+                  }`}>
+                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                      <div className="space-y-1">
+                        <div className="flex items-center gap-1.5 text-xs font-bold text-ink">
+                          <Repeat className="h-4 w-4 text-jade-700" />
+                          <span>
+                            {handshakeStatus.isCompleted
+                              ? "¡Trueque Completado con Éxito! (2/2)"
+                              : "Acuerdo de trueque presencial en curso"}
+                          </span>
                         </div>
-                        <p className="text-[11px] text-amber-800">
-                          Punto acordado: {activeTrade.puntoEncuentro}
+                        <p className="text-[11px] text-sage-600">
+                          <span className="font-semibold text-ink">{activeTrade.tituloOfertado}</span> por{" "}
+                          <span className="font-semibold text-ink">{activeTrade.tituloSolicitado}</span> en{" "}
+                          <span className="text-jade-800 font-medium">{activeTrade.puntoEncuentro}</span>
                         </p>
                       </div>
 
@@ -477,43 +697,57 @@ export default function MessagesPage({
                         <button
                           type="button"
                           disabled={isConfirming}
-                          onClick={async () => {
-                            if (!user?.id) return;
-                            setIsConfirming(true);
-                            try {
-                              await confirmTradeHandshake(activeTrade.id, user.id);
-                              const updatedTrades = await fetchUserTrades(user.id);
-                              setUserTrades(updatedTrades);
-                            } finally {
-                              setIsConfirming(false);
-                            }
-                          }}
-                          className="inline-flex items-center justify-center gap-1.5 rounded-xl bg-jade-600 px-3.5 py-1.5 text-xs font-bold text-white shadow-xs hover:bg-jade-700 disabled:opacity-50"
+                          onClick={handleConfirmTrade}
+                          className="inline-flex items-center justify-center gap-1.5 rounded-xl bg-jade-600 px-4 py-2 text-xs font-bold text-white shadow-xs hover:bg-jade-700 active:scale-[0.98] transition-all disabled:opacity-50"
                         >
                           {isConfirming ? (
                             <>
                               <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                              <span>Confirmando...</span>
+                              <span>Confirmando entrega...</span>
                             </>
                           ) : (
                             <>
-                              <Check className="h-3.5 w-3.5" />
+                              <Check className="h-4 w-4" />
                               <span>Confirmar entrega presencial</span>
                             </>
                           )}
                         </button>
                       ) : (
-                        <span
-                          className={`inline-flex items-center gap-1 rounded-full px-2.5 py-0.5 text-[11px] font-semibold border ${
-                            handshakeStatus.badgeVariant === "completed"
-                              ? "bg-jade-50 text-jade-700 border-jade-200"
-                              : "bg-amber-100 text-amber-800 border-amber-300"
-                          }`}
-                        >
-                          {handshakeStatus.badgeLabel}
-                        </span>
+                        <div className="flex items-center gap-2">
+                          <span
+                            className={`inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-xs font-semibold border ${
+                              handshakeStatus.badgeVariant === "completed"
+                                ? "bg-emerald-100 text-emerald-800 border-emerald-300"
+                                : "bg-amber-100 text-amber-800 border-amber-300"
+                            }`}
+                          >
+                            {handshakeStatus.badgeVariant === "completed" ? (
+                              <CheckCircle2 className="h-3.5 w-3.5 text-emerald-700" />
+                            ) : (
+                              <Clock className="h-3.5 w-3.5 text-amber-700" />
+                            )}
+                            <span>{handshakeStatus.badgeLabel}</span>
+                          </span>
+                        </div>
                       )}
                     </div>
+                  </div>
+                ) : (
+                  <div className="border-b border-line bg-jade-50/40 px-4 py-2 flex items-center justify-between gap-3 text-xs">
+                    <div className="flex items-center gap-2 text-sage-600 min-w-0">
+                      <Repeat className="h-3.5 w-3.5 text-jade-700 shrink-0" />
+                      <span className="truncate">
+                        ¿Listos para acordar el intercambio? Pacten el punto de encuentro y los objetos.
+                      </span>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => setShowProposalModal(true)}
+                      className="inline-flex items-center gap-1.5 shrink-0 rounded-lg bg-jade-600 px-3 py-1.5 text-xs font-bold text-white shadow-xs hover:bg-jade-700 transition"
+                    >
+                      <Repeat className="h-3.5 w-3.5" />
+                      <span>Pactar Trueque</span>
+                    </button>
                   </div>
                 )}
 
@@ -548,7 +782,7 @@ export default function MessagesPage({
                           >
                             {!isMine && (
                               <span className="block text-[10px] font-bold text-jade-700 mb-1">
-                                {msg.emisorNombre || "Contraparte"}
+                                {msg.emisorNombre || otherUserName}
                               </span>
                             )}
                             <p className="whitespace-pre-wrap">{msg.contenido}</p>
@@ -606,6 +840,90 @@ export default function MessagesPage({
           </section>
         </div>
       </main>
+
+      {/* Modal Pactar Trueque Presencial */}
+      {showProposalModal && selectedProduct && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-xs p-4">
+          <div className="w-full max-w-md rounded-2xl border border-line bg-white p-5 sm:p-6 shadow-xl animate-in fade-in zoom-in-95 duration-150">
+            <div className="flex items-center justify-between border-b border-line pb-3">
+              <div className="flex items-center gap-2">
+                <Repeat className="h-5 w-5 text-jade-700" />
+                <h3 className="text-sm font-bold text-ink">Pactar Trueque Presencial</h3>
+              </div>
+              <button
+                type="button"
+                onClick={() => setShowProposalModal(false)}
+                className="rounded-lg p-1.5 text-sage-400 hover:bg-paper hover:text-ink"
+              >
+                <X className="h-4 w-4" />
+              </button>
+            </div>
+
+            <form onSubmit={handleCreateProposal} className="mt-4 space-y-4 text-xs">
+              <div>
+                <label className="block font-semibold text-ink mb-1">
+                  Artículo que ofreces a cambio
+                </label>
+                <input
+                  type="text"
+                  value={offeredItemText}
+                  onChange={(e) => setOfferedItemText(e.target.value)}
+                  placeholder={`Ej. ${selectedProduct.wantsInReturn || "Consola, tablet o celular"}`}
+                  className="w-full rounded-xl border border-line bg-paper px-3 py-2 text-xs text-ink placeholder:text-sage-400 focus:border-jade-500 focus:bg-white focus:outline-none"
+                  autoFocus
+                />
+              </div>
+
+              <div>
+                <label className="block font-semibold text-ink mb-1">
+                  Punto seguro de encuentro (Chimbote)
+                </label>
+                <select
+                  value={selectedSafePoint}
+                  onChange={(e) => setSelectedSafePoint(e.target.value)}
+                  className="w-full rounded-xl border border-line bg-paper px-3 py-2 text-xs text-ink focus:border-jade-500 focus:bg-white focus:outline-none"
+                >
+                  {CHIMBOTE_SAFE_POINTS.map((pt) => (
+                    <option key={pt} value={pt}>
+                      {pt}
+                    </option>
+                  ))}
+                </select>
+                <p className="mt-1 text-[11px] text-sage-500">
+                  Lugar vigilado y de alta afluencia para realizar el intercambio con total seguridad.
+                </p>
+              </div>
+
+              <div className="pt-2 flex items-center justify-end gap-2">
+                <button
+                  type="button"
+                  onClick={() => setShowProposalModal(false)}
+                  className="rounded-xl px-4 py-2 text-xs font-semibold text-sage-600 hover:bg-paper"
+                >
+                  Cancelar
+                </button>
+                <button
+                  type="submit"
+                  disabled={!offeredItemText.trim() || isCreatingProposal}
+                  className="inline-flex items-center gap-1.5 rounded-xl bg-jade-600 px-4 py-2 text-xs font-bold text-white shadow-xs hover:bg-jade-700 disabled:opacity-50"
+                >
+                  {isCreatingProposal ? (
+                    <>
+                      <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                      <span>Enviando...</span>
+                    </>
+                  ) : (
+                    <>
+                      <Check className="h-3.5 w-3.5" />
+                      <span>Enviar propuesta</span>
+                    </>
+                  )}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
