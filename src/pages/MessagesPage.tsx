@@ -32,6 +32,7 @@ import {
 } from "../services/chatService";
 import {
   fetchUserTrades,
+  fetchTradeByPublication,
   createTradeProposal,
   acceptTradePact,
   cancelTradeProposal,
@@ -155,8 +156,20 @@ export default function MessagesPage({
         });
 
         if (selectedPubId) {
-          const chatMsgs = await fetchMessagesByPublication(selectedPubId, user.id);
+          const [chatMsgs, pubTrade] = await Promise.all([
+            fetchMessagesByPublication(selectedPubId, user.id),
+            fetchTradeByPublication(selectedPubId),
+          ]);
           if (!isMounted) return;
+          if (pubTrade) {
+            setUserTrades((prev) => {
+              const exists = prev.some((t) => t.id === pubTrade.id);
+              if (exists) {
+                return prev.map((t) => (t.id === pubTrade.id ? pubTrade : t));
+              }
+              return [pubTrade, ...prev];
+            });
+          }
           setActiveMessages((prev) => {
             if (
               prev.length !== chatMsgs.length ||
@@ -316,9 +329,31 @@ export default function MessagesPage({
         const hasThreadPact = threadMsgs.some((m) =>
           m.contenido.includes("Pacto formal de trueque aceptado")
         );
+        const hasThreadProposal = threadMsgs.some((m) =>
+          m.contenido.includes("He propuesto formalmente un pacto de trueque")
+        );
         const hasThreadCancel = threadMsgs.some((m) =>
           m.contenido.includes("propuesta de trueque ha sido cancelada")
         );
+
+        if (!trade && hasThreadProposal && !hasThreadCancel) {
+          trade = {
+            id: `trade-thread-${msg.publicacionId}`,
+            proponenteId: pub.userId || "",
+            receptorId: null,
+            publicacionOfertadaId: `offered-${msg.publicacionId}`,
+            publicacionSolicitadaId: msg.publicacionId,
+            tituloOfertado: "Artículo acordado",
+            tituloSolicitado: pub.title,
+            imagenOfertada: pub.image,
+            imagenSolicitada: pub.image,
+            puntoEncuentro: pub.safePointRecommended || "Plaza de Armas",
+            confirmadoProponente: true,
+            confirmadoReceptor: false,
+            estado: "pendiente" as TradeStatus,
+            createdAt: msg.createdAt,
+          };
+        }
 
         if (trade) {
           if (hasThreadCancel && trade.estado !== "completada") {
@@ -418,8 +453,51 @@ export default function MessagesPage({
       .sort(
         (a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
       );
-    return list[0] || null;
-  }, [userTrades, selectedPubId]);
+    if (list[0]) return list[0];
+
+    // Síntesis de propuesta de trueque activa a partir de los mensajes del chat si aún no se sincronizó remotamente
+    const proposalMsg = activeMessages
+      .slice()
+      .reverse()
+      .find((m) => m.contenido.includes("He propuesto formalmente un pacto de trueque"));
+
+    if (proposalMsg && selectedProduct && selectedPubId) {
+      let offered = "";
+      let requested = "";
+      let safePoint = selectedProduct.safePointRecommended || "Plaza de Armas de Chimbote";
+
+      const match = proposalMsg.contenido.match(
+        /He propuesto formalmente un pacto de trueque:\s*["“](.+?)["”]\s*a cambio de(?: mi)?\s*["“](.+?)["”]\s*en\s*(.+?)\.\s*Por favor/i
+      );
+
+      if (match) {
+        offered = match[1];
+        requested = match[2];
+        safePoint = match[3];
+      }
+
+      return {
+        id: `trade-${proposalMsg.id}`,
+        proponenteId: proposalMsg.emisorId || selectedProduct.userId || "",
+        receptorId: isOwner ? null : user?.id || null,
+        publicacionOfertadaId: `offered-${selectedPubId}`,
+        publicacionSolicitadaId: selectedPubId,
+        tituloOfertado: offered || "Artículo acordado",
+        tituloSolicitado: requested || selectedProduct.title,
+        imagenOfertada: isOwner
+          ? user?.fotoPerfil || selectedProduct.image
+          : selectedProduct.image,
+        imagenSolicitada: selectedProduct.image,
+        puntoEncuentro: safePoint,
+        confirmadoProponente: true,
+        confirmadoReceptor: false,
+        estado: "pendiente" as TradeStatus,
+        createdAt: proposalMsg.createdAt,
+      };
+    }
+
+    return null;
+  }, [userTrades, selectedPubId, activeMessages, selectedProduct, isOwner, user?.id, user?.fotoPerfil]);
 
   // Sincronización reactiva del estado del pacto y handshake con los mensajes del chat
   const activeTrade = React.useMemo(() => {
@@ -685,7 +763,13 @@ export default function MessagesPage({
     try {
       const updated = await acceptTradePact(activeTrade.id, user.id);
       if (updated) {
-        setUserTrades((prev) => prev.map((t) => (t.id === updated.id ? updated : t)));
+        setUserTrades((prev) => {
+          const exists = prev.some((t) => t.id === updated.id);
+          if (exists) {
+            return prev.map((t) => (t.id === updated.id ? updated : t));
+          }
+          return [updated, ...prev];
+        });
       }
 
       const counterMsg = activeMessages.find((m) => m.emisorId && m.emisorId !== user.id);
@@ -1251,6 +1335,36 @@ export default function MessagesPage({
                             {msg.contenido && (
                               <p className="whitespace-pre-wrap break-words">{msg.contenido}</p>
                             )}
+
+                            {/* Botones de acción directa dentro de la burbuja para la contraparte */}
+                            {!isMine &&
+                              msg.contenido.includes("He propuesto formalmente un pacto de trueque") &&
+                              !handshakeStatus?.isPactado &&
+                              !handshakeStatus?.isCompleted && (
+                                <div className="mt-2.5 pt-2 border-t border-line flex items-center gap-2">
+                                  <button
+                                    type="button"
+                                    disabled={isConfirming}
+                                    onClick={handleAcceptPact}
+                                    className="inline-flex items-center gap-1.5 rounded-xl bg-jade-600 px-3.5 py-1.5 text-xs font-bold text-white shadow-xs hover:bg-jade-700 active:scale-[0.98] transition disabled:opacity-50"
+                                  >
+                                    {isConfirming ? (
+                                      <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                                    ) : (
+                                      <Check className="h-3.5 w-3.5" />
+                                    )}
+                                    <span>Aceptar Pacto</span>
+                                  </button>
+                                  <button
+                                    type="button"
+                                    disabled={isConfirming}
+                                    onClick={handleCancelPact}
+                                    className="rounded-xl border border-line bg-white px-2.5 py-1.5 text-xs font-semibold text-rose-600 hover:bg-rose-50 transition disabled:opacity-50"
+                                  >
+                                    Rechazar
+                                  </button>
+                                </div>
+                              )}
 
                             {/* Hora y Checks estilo WhatsApp */}
                             <div

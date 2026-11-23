@@ -191,7 +191,7 @@ export async function acceptTradePact(
       updatedTrade = {
         ...t,
         confirmadoProponente: false,
-        confirmadoReceptor: false,
+        confirmadoReceptor: true,
         estado: "pactado" as TradeStatus,
       };
       return updatedTrade;
@@ -199,7 +199,27 @@ export async function acceptTradePact(
     return t;
   });
 
-  saveLocalTrades(updated);
+  if (!updatedTrade) {
+    updatedTrade = {
+      id: proposalId,
+      proponenteId: "",
+      receptorId: _userId,
+      publicacionOfertadaId: "",
+      publicacionSolicitadaId: "",
+      tituloOfertado: "",
+      tituloSolicitado: "",
+      imagenOfertada: "",
+      imagenSolicitada: "",
+      puntoEncuentro: "",
+      confirmadoProponente: false,
+      confirmadoReceptor: true,
+      estado: "pactado" as TradeStatus,
+      createdAt: new Date().toISOString(),
+    };
+    saveLocalTrades([updatedTrade, ...local]);
+  } else {
+    saveLocalTrades(updated);
+  }
 
   if (typeof window !== "undefined" && updatedTrade) {
     window.dispatchEvent(
@@ -423,6 +443,60 @@ export async function confirmTradeHandshake(
         ? "Trueque completado con éxito"
         : "Confirmación registrada",
   };
+}
+
+/**
+ * Obtiene la propuesta activa asociada a una publicación concreta
+ */
+export async function fetchTradeByPublication(
+  publicationId: string
+): Promise<TradeProposal | null> {
+  const local = getLocalTrades().find(
+    (t) =>
+      (t.publicacionSolicitadaId === publicationId ||
+        t.publicacionOfertadaId === publicationId) &&
+      t.estado !== "cancelada"
+  );
+
+  try {
+    const { data, error } = await supabase
+      .from("propuesta_trueque")
+      .select("*")
+      .eq("publicacion_solicitada_id", publicationId)
+      .neq("estado", "cancelada")
+      .order("created_at", { ascending: false })
+      .limit(1)
+      .maybeSingle();
+
+    if (!error && data) {
+      let est: TradeStatus = data.estado;
+      if (data.confirmado_receptor && data.estado === "pendiente") {
+        est = "pactado";
+      }
+      const remoteTrade: TradeProposal = {
+        id: data.id,
+        proponenteId: data.proponente_id,
+        receptorId: data.receptor_id,
+        publicacionOfertadaId: data.publicacion_ofertada_id,
+        publicacionSolicitadaId: data.publicacion_solicitada_id,
+        tituloOfertado: data.titulo_ofertado,
+        tituloSolicitado: data.titulo_solicitado,
+        imagenOfertada: data.imagen_ofertada,
+        imagenSolicitada: data.imagen_solicitada,
+        puntoEncuentro: data.punto_encuentro,
+        confirmadoProponente: data.confirmado_proponente,
+        confirmadoReceptor: data.confirmado_receptor,
+        estado: est,
+        createdAt: data.created_at,
+        fechaCierre: data.fecha_cierre,
+      };
+      return remoteTrade;
+    }
+  } catch (err) {
+    console.warn("[tradeService] Error al obtener propuesta por publicación:", err);
+  }
+
+  return local || null;
 }
 
 /**
