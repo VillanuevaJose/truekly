@@ -229,13 +229,23 @@ export async function createTradeProposal(
     imagenOfertada: dto.imagenOfertada,
     imagenSolicitada: dto.imagenSolicitada,
     puntoEncuentro: dto.puntoEncuentro || "Plaza de Armas de Chimbote",
-    confirmadoProponente: false,
+    confirmadoProponente: true,
     confirmadoReceptor: false,
     estado: "pendiente",
     createdAt: new Date().toISOString(),
   };
 
-  const local = getLocalTrades();
+  // Reemplazar propuestas previas pendientes en la misma publicación
+  const local = getLocalTrades().map((t) => {
+    if (
+      (t.publicacionSolicitadaId === dto.publicacionSolicitadaId ||
+        t.publicacionOfertadaId === dto.publicacionSolicitadaId) &&
+      t.estado === "pendiente"
+    ) {
+      return { ...t, estado: "cancelada" as TradeStatus };
+    }
+    return t;
+  });
   saveLocalTrades([newTrade, ...local]);
 
   if (typeof window !== "undefined") {
@@ -247,6 +257,13 @@ export async function createTradeProposal(
   }
 
   try {
+    // Cancelar en Supabase propuestas previas pendientes para esta publicación
+    await supabase
+      .from("propuesta_trueque")
+      .update({ estado: "cancelada" })
+      .eq("publicacion_solicitada_id", dto.publicacionSolicitadaId)
+      .eq("estado", "pendiente");
+
     const { data, error } = await supabase
       .from("propuesta_trueque")
       .insert({
@@ -260,6 +277,9 @@ export async function createTradeProposal(
         imagen_ofertada: dto.imagenOfertada,
         imagen_solicitada: dto.imagenSolicitada,
         punto_encuentro: newTrade.puntoEncuentro,
+        confirmado_proponente: true,
+        confirmado_receptor: false,
+        estado: "pendiente",
       })
       .select()
       .single();
@@ -358,14 +378,14 @@ export async function confirmTradeHandshake(
  */
 export async function fetchUserTrades(userId: string): Promise<TradeProposal[]> {
   const local = getLocalTrades().filter(
-    (t) => t.proponenteId === userId || t.receptorId === userId
+    (t) => t.proponenteId === userId || t.receptorId === userId || !t.receptorId
   );
 
   try {
     const { data, error } = await supabase
       .from("propuesta_trueque")
       .select("*")
-      .or(`proponente_id.eq.${userId},receptor_id.eq.${userId}`)
+      .or(`proponente_id.eq.${userId},receptor_id.eq.${userId},receptor_id.is.null`)
       .order("created_at", { ascending: false });
 
     if (!error && data) {
@@ -388,9 +408,13 @@ export async function fetchUserTrades(userId: string): Promise<TradeProposal[]> 
       }));
 
       const map = new Map<string, TradeProposal>();
-      local.forEach((t) => map.set(t.id, t));
       remote.forEach((t) => map.set(t.id, t));
-      const combined = Array.from(map.values());
+      local.forEach((t) => {
+        if (!map.has(t.id)) map.set(t.id, t);
+      });
+      const combined = Array.from(map.values()).sort(
+        (a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
+      );
       saveLocalTrades(combined);
       return combined;
     }
@@ -398,7 +422,9 @@ export async function fetchUserTrades(userId: string): Promise<TradeProposal[]> 
     console.warn("[tradeService] Error al obtener propuestas de Supabase:", err);
   }
 
-  return local;
+  return local.sort(
+    (a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
+  );
 }
 
 /**

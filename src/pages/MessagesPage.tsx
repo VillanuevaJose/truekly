@@ -283,11 +283,16 @@ export default function MessagesPage({
           },
         } as Product;
 
-        const trade = userTrades.find(
+        const matchingTrades = userTrades.filter(
           (t) =>
-            t.publicacionSolicitadaId === msg.publicacionId ||
-            t.publicacionOfertadaId === msg.publicacionId
+            (t.publicacionSolicitadaId === msg.publicacionId ||
+              t.publicacionOfertadaId === msg.publicacionId) &&
+            t.estado !== "cancelada"
         );
+        matchingTrades.sort(
+          (a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
+        );
+        const trade = matchingTrades[0] || null;
 
         const isUserOwner = Boolean(user?.id && pub.userId && pub.userId === user.id);
         const counterparty = isUserOwner
@@ -309,6 +314,17 @@ export default function MessagesPage({
       const pub = publications.find((p) => p.id === initialPublicationId);
       if (pub) {
         const isUserOwner = Boolean(user?.id && pub.userId && pub.userId === user.id);
+        const matchingTrades = userTrades.filter(
+          (t) =>
+            (t.publicacionSolicitadaId === pub.id ||
+              t.publicacionOfertadaId === pub.id) &&
+            t.estado !== "cancelada"
+        );
+        matchingTrades.sort(
+          (a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
+        );
+        const trade = matchingTrades[0] || null;
+
         threadMap.set(initialPublicationId, {
           publication: pub,
           lastMessage: {
@@ -320,11 +336,7 @@ export default function MessagesPage({
             leido: true,
             createdAt: new Date().toISOString(),
           },
-          tradeProposal: userTrades.find(
-            (t) =>
-              t.publicacionSolicitadaId === pub.id ||
-              t.publicacionOfertadaId === pub.id
-          ),
+          tradeProposal: trade || null,
           counterpartyName: isUserOwner ? "Interesado en tu artículo" : pub.owner.name,
         });
       }
@@ -345,11 +357,21 @@ export default function MessagesPage({
 
   const selectedThread = threads.find((t) => t.publication.id === selectedPubId);
   const selectedProduct = selectedThread?.publication;
-  const activeTrade = selectedThread?.tradeProposal;
 
   const isOwner = Boolean(
     user?.id && selectedProduct?.userId && selectedProduct.userId === user.id
   );
+
+  const activeTrade = userTrades
+    .filter(
+      (t) =>
+        (t.publicacionSolicitadaId === selectedPubId ||
+          t.publicacionOfertadaId === selectedPubId) &&
+        t.estado !== "cancelada"
+    )
+    .sort(
+      (a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
+    )[0] || null;
 
   const otherUserName = isOwner
     ? selectedThread?.counterpartyName || "Interesado en tu artículo"
@@ -467,17 +489,29 @@ export default function MessagesPage({
     }
   };
 
-  // 1. Proponer pacto de trueque
+  // 1. Proponer pacto de trueque (exclusivo para el dueño del artículo publicado)
   const handleCreateProposal = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!user?.id || !selectedProduct || !offeredItemText.trim() || isCreatingProposal) return;
 
+    if (!isOwner) {
+      alert("Solo el usuario que publicó el artículo puede proponer formalmente el trueque.");
+      return;
+    }
+
     setIsCreatingProposal(true);
     try {
       const counterMsg = activeMessages.find((m) => m.emisorId && m.emisorId !== user.id);
-      const targetUserId = isOwner
-        ? counterMsg?.emisorId || null
-        : selectedProduct.userId || null;
+      const counterReceptor = activeMessages.find((m) => m.receptorId && m.receptorId !== user.id);
+      const targetUserId =
+        counterMsg?.emisorId ||
+        counterReceptor?.receptorId ||
+        (selectedThread?.lastMessage.emisorId !== user.id
+          ? selectedThread?.lastMessage.emisorId
+          : selectedThread?.lastMessage.receptorId !== user.id
+          ? selectedThread?.lastMessage.receptorId
+          : null) ||
+        null;
 
       const newProposal = await createTradeProposal({
         proponenteId: user.id,
@@ -505,7 +539,7 @@ export default function MessagesPage({
         emisorId: user.id,
         emisorNombre: user.nombre || user.username || "Usuario",
         receptorId: targetUserId,
-        contenido: `🔄 He propuesto formalmente un pacto de trueque: "${offeredItemText.trim()}" a cambio de "${selectedProduct.title}" en ${selectedSafePoint}. Por favor pulsa en 'Aceptar Pacto' para registrar formalmente el acuerdo.`,
+        contenido: `🔄 He propuesto formalmente un pacto de trueque: "${offeredItemText.trim()}" a cambio de mi "${selectedProduct.title}" en ${selectedSafePoint}. Por favor pulsa en 'Aceptar Pacto' para confirmar el acuerdo.`,
       });
 
       const updatedMsgs = await fetchMessagesByPublication(selectedProduct.id, user.id);
@@ -839,7 +873,7 @@ export default function MessagesPage({
                   </div>
 
                   <div className="flex items-center gap-2">
-                    {(!activeTrade || activeTrade.estado === "cancelada") && (
+                    {isOwner && (!activeTrade || activeTrade.estado === "cancelada") && (
                       <button
                         type="button"
                         onClick={() => setShowProposalModal(true)}
@@ -900,9 +934,9 @@ export default function MessagesPage({
                               ? "¡Trueque Completado con Éxito! (2/2)"
                               : handshakeStatus.isPactado
                               ? "✅ Pacto formal acordado — Coordinar entrega presencial"
-                              : activeTrade.proponenteId === user?.id
+                              : isOwner
                               ? "⏳ Esperando aceptación del pacto por la contraparte"
-                              : "🔔 Propuesta de pacto recibida — Requiere tu confirmación"}
+                              : "🔔 Propuesta de pacto recibida del dueño — Confirma para formalizar el trueque"}
                           </span>
                         </div>
                         <p className="text-[11px] text-sage-600 truncate">
@@ -917,13 +951,13 @@ export default function MessagesPage({
                         {/* FASE 1: Pendiente de aceptación formal mutua */}
                         {!handshakeStatus.isPactado && !handshakeStatus.isCompleted && (
                           <>
-                            {activeTrade.proponenteId !== user?.id ? (
+                            {!isOwner ? (
                               <div className="flex items-center gap-2">
                                 <button
                                   type="button"
                                   disabled={isConfirming}
                                   onClick={handleAcceptPact}
-                                  className="inline-flex items-center gap-1.5 rounded-xl bg-jade-600 px-3.5 py-1.5 text-xs font-bold text-white shadow-xs hover:bg-jade-700 active:scale-[0.98] transition disabled:opacity-50"
+                                  className="inline-flex items-center gap-1.5 rounded-xl bg-jade-600 px-4 py-2 text-xs font-bold text-white shadow-xs hover:bg-jade-700 active:scale-[0.98] transition disabled:opacity-50"
                                 >
                                   {isConfirming ? (
                                     <Loader2 className="h-3.5 w-3.5 animate-spin" />
@@ -936,7 +970,7 @@ export default function MessagesPage({
                                   type="button"
                                   disabled={isConfirming}
                                   onClick={handleCancelPact}
-                                  className="rounded-xl border border-line bg-white px-3 py-1.5 text-xs font-semibold text-rose-600 hover:bg-rose-50 transition disabled:opacity-50"
+                                  className="rounded-xl border border-line bg-white px-3 py-2 text-xs font-semibold text-rose-600 hover:bg-rose-50 transition disabled:opacity-50"
                                 >
                                   Rechazar
                                 </button>
@@ -945,14 +979,14 @@ export default function MessagesPage({
                               <div className="flex items-center gap-2">
                                 <span className="inline-flex items-center gap-1.5 rounded-full bg-amber-100 px-3 py-1 text-xs font-semibold text-amber-800 border border-amber-300">
                                   <Clock className="h-3.5 w-3.5 text-amber-700" />
-                                  <span>Esperando respuesta</span>
+                                  <span>Esperando respuesta de la contraparte</span>
                                 </span>
                                 <button
                                   type="button"
                                   disabled={isConfirming}
                                   onClick={handleCancelPact}
-                                  className="rounded-lg p-1 text-sage-400 hover:bg-paper hover:text-rose-600 transition"
-                                  title="Cancelar propuesta"
+                                  className="rounded-lg p-1.5 text-sage-400 hover:bg-paper hover:text-rose-600 transition"
+                                  title="Cancelar propuesta de trueque"
                                 >
                                   <X className="h-4 w-4" />
                                 </button>
@@ -1007,17 +1041,21 @@ export default function MessagesPage({
                     <div className="flex items-center gap-2 text-sage-600 min-w-0">
                       <Repeat className="h-3.5 w-3.5 text-jade-700 shrink-0" />
                       <span className="truncate">
-                        ¿Listos para acordar el intercambio? Pacten el punto de encuentro y los artículos.
+                        {isOwner
+                          ? "¿Acordaron el intercambio en el chat? Como dueño del artículo, formaliza el pacto."
+                          : "Conversa con el anunciante para acordar los detalles. El dueño formalizará el pacto de trueque."}
                       </span>
                     </div>
-                    <button
-                      type="button"
-                      onClick={() => setShowProposalModal(true)}
-                      className="inline-flex items-center gap-1.5 shrink-0 rounded-lg bg-jade-600 px-3 py-1.5 text-xs font-bold text-white shadow-xs hover:bg-jade-700 transition"
-                    >
-                      <Repeat className="h-3.5 w-3.5" />
-                      <span>Pactar Trueque</span>
-                    </button>
+                    {isOwner && (
+                      <button
+                        type="button"
+                        onClick={() => setShowProposalModal(true)}
+                        className="inline-flex items-center gap-1.5 shrink-0 rounded-lg bg-jade-600 px-3 py-1.5 text-xs font-bold text-white shadow-xs hover:bg-jade-700 transition"
+                      >
+                        <Repeat className="h-3.5 w-3.5" />
+                        <span>Pactar Trueque</span>
+                      </button>
+                    )}
                   </div>
                 )}
 
@@ -1220,14 +1258,14 @@ export default function MessagesPage({
         </div>
       </main>
 
-      {/* Modal Pactar Trueque Presencial */}
-      {showProposalModal && selectedProduct && (
+      {/* Modal Pactar Trueque Presencial (Exclusivo para el dueño de la publicación) */}
+      {showProposalModal && selectedProduct && isOwner && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-xs p-4">
           <div className="w-full max-w-md rounded-2xl border border-line bg-white p-5 sm:p-6 shadow-xl animate-in fade-in zoom-in-95 duration-150">
             <div className="flex items-center justify-between border-b border-line pb-3">
               <div className="flex items-center gap-2">
                 <Repeat className="h-5 w-5 text-jade-700" />
-                <h3 className="text-sm font-bold text-ink">Pactar Trueque Presencial</h3>
+                <h3 className="text-sm font-bold text-ink">Formalizar Pacto de Trueque</h3>
               </div>
               <button
                 type="button"
@@ -1242,7 +1280,7 @@ export default function MessagesPage({
               {/* Artículo fijo de la publicación */}
               <div>
                 <label className="block font-semibold text-ink mb-1.5">
-                  Artículo de la publicación
+                  Tu artículo publicado (Fijo)
                 </label>
                 <div className="flex items-center gap-3 rounded-xl border border-line bg-paper p-2.5">
                   <img
@@ -1253,7 +1291,7 @@ export default function MessagesPage({
                   <div className="min-w-0">
                     <p className="font-bold text-ink truncate">{selectedProduct.title}</p>
                     <p className="text-[11px] text-sage-500 truncate">
-                      Interés del dueño: {selectedProduct.wantsInReturn}
+                      Lo que buscabas: {selectedProduct.wantsInReturn}
                     </p>
                   </div>
                 </div>
@@ -1261,13 +1299,13 @@ export default function MessagesPage({
 
               <div>
                 <label className="block font-semibold text-ink mb-1">
-                  Artículo que se ofrece a cambio
+                  Artículo que acordaron que te entregará la contraparte
                 </label>
                 <input
                   type="text"
                   value={offeredItemText}
                   onChange={(e) => setOfferedItemText(e.target.value)}
-                  placeholder={`Ej. ${selectedProduct.wantsInReturn || "PlayStation 4, Bicicleta, etc."}`}
+                  placeholder={`Ej. ${selectedProduct.wantsInReturn || "Monitor gamer, consola, bicicleta, etc."}`}
                   className="w-full rounded-xl border border-line bg-paper px-3 py-2 text-xs text-ink placeholder:text-sage-400 focus:border-jade-500 focus:bg-white focus:outline-none"
                   autoFocus
                 />
