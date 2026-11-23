@@ -94,7 +94,7 @@ export default function MessagesPage({
   const [selectedSafePoint, setSelectedSafePoint] = useState(CHIMBOTE_SAFE_POINTS[0]);
   const [isCreatingProposal, setIsCreatingProposal] = useState(false);
 
-  const messagesEndRef = useRef<HTMLDivElement>(null);
+  const chatScrollContainerRef = useRef<HTMLDivElement>(null);
 
   // 1. Carga inicial de datos
   useEffect(() => {
@@ -248,9 +248,11 @@ export default function MessagesPage({
     };
   }, [selectedPubId, user?.id]);
 
-  // Auto-scroll al final del chat
+  // Scroll interno al final del chat sin mover la ventana del navegador
   useEffect(() => {
-    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+    if (chatScrollContainerRef.current) {
+      chatScrollContainerRef.current.scrollTop = chatScrollContainerRef.current.scrollHeight;
+    }
   }, [activeMessages]);
 
   // Construir la lista de hilos de conversación agrupados por publicación
@@ -621,10 +623,10 @@ export default function MessagesPage({
     : null;
 
   return (
-    <div className="min-h-screen bg-[#F7F8F6] font-sans text-ink flex flex-col antialiased">
+    <div className="h-screen max-h-screen bg-[#F7F8F6] font-sans text-ink flex flex-col antialiased overflow-hidden">
       {/* Top Header Barra de Navegación */}
-      <header className="sticky top-0 z-30 border-b border-line bg-white/95 backdrop-blur-sm">
-        <div className="mx-auto flex max-w-7xl items-center justify-between px-4 py-3 sm:px-6">
+      <header className="shrink-0 z-30 border-b border-line bg-white/95 backdrop-blur-sm">
+        <div className="mx-auto flex max-w-7xl items-center justify-between px-4 py-2.5 sm:px-6">
           <div className="flex items-center gap-3">
             <button
               type="button"
@@ -649,17 +651,17 @@ export default function MessagesPage({
       </header>
 
       {/* Main Split Layout estilo WhatsApp Web */}
-      <main className="mx-auto flex-1 w-full max-w-7xl p-3 sm:p-4 lg:p-6">
-        <div className="h-[calc(100vh-100px)] grid grid-cols-1 md:grid-cols-12 rounded-2xl border border-line bg-white shadow-xs overflow-hidden">
+      <main className="mx-auto flex-1 min-h-0 w-full max-w-7xl p-2 sm:p-3 lg:p-4 overflow-hidden">
+        <div className="h-full grid grid-cols-1 md:grid-cols-12 rounded-2xl border border-line bg-white shadow-xs overflow-hidden">
           {/* PANEL IZQUIERDO: LISTA DE CONVERSACIONES (4 cols en md/lg) */}
           <section
-            className={`border-r border-line flex flex-col bg-white md:col-span-4 ${
+            className={`border-r border-line flex flex-col bg-white md:col-span-4 h-full min-h-0 overflow-hidden ${
               selectedPubId ? "hidden md:flex" : "flex"
             }`}
             aria-label="Lista de chats"
           >
             {/* Buscador */}
-            <div className="p-3 border-b border-line bg-[#FAFBF9]">
+            <div className="shrink-0 p-3 border-b border-line bg-[#FAFBF9]">
               <div className="relative">
                 <Search className="absolute left-3 top-2.5 h-3.5 w-3.5 text-sage-400" />
                 <input
@@ -673,7 +675,7 @@ export default function MessagesPage({
             </div>
 
             {/* Listado de Hilos */}
-            <div className="flex-1 overflow-y-auto divide-y divide-line/60">
+            <div className="flex-1 min-h-0 overflow-y-auto divide-y divide-line/60">
               {threads.length === 0 ? (
                 <div className="p-8 text-center text-sage-500">
                   <div className="mx-auto mb-3 flex h-12 w-12 items-center justify-center rounded-2xl bg-paper text-sage-400">
@@ -789,15 +791,15 @@ export default function MessagesPage({
 
           {/* PANEL DERECHO: CONVERSACIÓN COMPLETA (8 cols en md/lg) */}
           <section
-            className={`flex flex-col bg-[#F7F8F6] md:col-span-8 ${
+            className={`flex flex-col bg-[#F7F8F6] md:col-span-8 h-full min-h-0 overflow-hidden ${
               !selectedPubId ? "hidden md:flex" : "flex"
             }`}
             aria-label="Ventana de chat"
           >
             {selectedProduct ? (
-              <>
+              <div className="flex flex-col h-full min-h-0 overflow-hidden">
                 {/* Cabecera del Chat Activo */}
-                <div className="flex items-center justify-between border-b border-line bg-white px-4 py-3 sm:px-5">
+                <div className="shrink-0 flex items-center justify-between border-b border-line bg-white px-4 py-3 sm:px-5">
                   <div className="flex items-center gap-3 min-w-0">
                     <button
                       type="button"
@@ -855,7 +857,7 @@ export default function MessagesPage({
                 </div>
 
                 {/* Banner del Producto en Negociación */}
-                <div className="flex items-center justify-between gap-3 border-b border-line bg-[#F2F5F3] px-4 py-2 text-xs">
+                <div className="shrink-0 flex items-center justify-between gap-3 border-b border-line bg-[#F2F5F3] px-4 py-2 text-xs">
                   <div className="flex items-center gap-2.5 min-w-0">
                     <img
                       src={selectedProduct.image}
@@ -881,7 +883,7 @@ export default function MessagesPage({
                 {/* Banner de Pacto / Handshake si hay propuesta activa */}
                 {activeTrade && activeTrade.estado !== "cancelada" && handshakeStatus ? (
                   <div
-                    className={`border-b px-4 py-3 transition-colors ${
+                    className={`shrink-0 border-b px-4 py-2.5 sm:py-3 transition-colors ${
                       handshakeStatus.isCompleted
                         ? "bg-emerald-50/90 border-emerald-200"
                         : handshakeStatus.isPactado
@@ -1001,7 +1003,7 @@ export default function MessagesPage({
                     </div>
                   </div>
                 ) : (
-                  <div className="border-b border-line bg-jade-50/40 px-4 py-2 flex items-center justify-between gap-3 text-xs">
+                  <div className="shrink-0 border-b border-line bg-jade-50/40 px-4 py-2 flex items-center justify-between gap-3 text-xs">
                     <div className="flex items-center gap-2 text-sage-600 min-w-0">
                       <Repeat className="h-3.5 w-3.5 text-jade-700 shrink-0" />
                       <span className="truncate">
@@ -1019,8 +1021,11 @@ export default function MessagesPage({
                   </div>
                 )}
 
-                {/* Cuerpo del Chat / Mensajes */}
-                <div className="flex-1 overflow-y-auto p-4 sm:p-5 space-y-3">
+                {/* Cuerpo del Chat / Mensajes con scroll interno confinado */}
+                <div
+                  ref={chatScrollContainerRef}
+                  className="flex-1 min-h-0 overflow-y-auto p-4 sm:p-5 space-y-3 overscroll-contain"
+                >
                   {activeMessages.length === 0 ? (
                     <div className="flex h-full flex-col items-center justify-center text-center p-6 text-sage-500">
                       <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-jade-50 text-jade-600 mb-3">
@@ -1042,38 +1047,38 @@ export default function MessagesPage({
                           }`}
                         >
                           <div
-                            className={`max-w-[85%] sm:max-w-[70%] rounded-2xl px-4 py-2.5 text-xs leading-relaxed shadow-2xs ${
+                            className={`max-w-[85%] sm:max-w-[70%] rounded-2xl px-4 py-2.5 text-xs leading-relaxed shadow-2xs break-words overflow-hidden ${
                               isMine
                                 ? "bg-jade-600 text-white rounded-tr-xs"
                                 : "bg-white text-ink border border-line rounded-tl-xs"
                             }`}
                           >
                             {!isMine && (
-                              <span className="block text-[10px] font-bold text-jade-700 mb-1">
+                              <span className="block text-[10px] font-bold text-jade-700 mb-1 truncate">
                                 {msg.emisorNombre || otherUserName}
                               </span>
                             )}
 
                             {/* Foto o Video adjunto */}
                             {msg.multimediaUrl && (
-                              <div className="mb-2 overflow-hidden rounded-xl">
+                              <div className="mb-2 overflow-hidden rounded-xl bg-black/5">
                                 {msg.multimediaTipo === "video" ? (
                                   <video
                                     src={msg.multimediaUrl}
                                     controls
                                     playsInline
-                                    className="max-h-64 w-full rounded-xl bg-black object-contain"
+                                    className="max-h-56 sm:max-h-72 w-auto max-w-full rounded-xl bg-black object-contain mx-auto"
                                   />
                                 ) : (
                                   <button
                                     type="button"
                                     onClick={() => setPreviewModalUrl(msg.multimediaUrl!)}
-                                    className="block w-full overflow-hidden rounded-xl text-left focus:outline-none"
+                                    className="block overflow-hidden rounded-xl text-left focus:outline-none"
                                   >
                                     <img
                                       src={msg.multimediaUrl}
                                       alt="Artículo para trueque"
-                                      className="max-h-64 w-full rounded-xl object-cover hover:opacity-95 transition"
+                                      className="max-h-56 sm:max-h-72 w-auto max-w-full rounded-xl object-contain hover:opacity-95 transition mx-auto"
                                     />
                                   </button>
                                 )}
@@ -1081,7 +1086,7 @@ export default function MessagesPage({
                             )}
 
                             {msg.contenido && (
-                              <p className="whitespace-pre-wrap">{msg.contenido}</p>
+                              <p className="whitespace-pre-wrap break-words">{msg.contenido}</p>
                             )}
 
                             {/* Hora y Checks estilo WhatsApp */}
@@ -1110,12 +1115,11 @@ export default function MessagesPage({
                       );
                     })
                   )}
-                  <div ref={messagesEndRef} />
                 </div>
 
                 {/* Preview de multimedia lista para enviar */}
                 {attachedMedia && (
-                  <div className="flex items-center justify-between gap-2 border-t border-line bg-jade-50/50 px-4 py-2 text-xs">
+                  <div className="shrink-0 flex items-center justify-between gap-2 border-t border-line bg-jade-50/50 px-4 py-2 text-xs">
                     <div className="flex items-center gap-2.5 min-w-0">
                       {attachedMedia.tipo === "imagen" ? (
                         <img
@@ -1153,7 +1157,7 @@ export default function MessagesPage({
                 {/* Input de Envío */}
                 <form
                   onSubmit={handleSendMessage}
-                  className="border-t border-line bg-white p-3 sm:px-4"
+                  className="shrink-0 border-t border-line bg-white p-3 sm:px-4"
                 >
                   <div className="flex items-center gap-2">
                     {/* Botón para adjuntar foto o video */}
@@ -1200,7 +1204,7 @@ export default function MessagesPage({
                     </button>
                   </div>
                 </form>
-              </>
+              </div>
             ) : (
               <div className="flex h-full flex-col items-center justify-center text-center p-8 text-sage-500">
                 <div className="flex h-16 w-16 items-center justify-center rounded-3xl bg-paper text-sage-400 mb-4">
