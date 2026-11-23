@@ -236,12 +236,12 @@ export default function Landing({
               isLoaded && !reducedMotion ? "lyniq-bg-enter" : "scale-100"
             }`}
           />
-          {/* Degradado suave y reducido: deja el centro despejado y visible */}
+          {/* Degradado y scrim luminoso: garantiza contraste editorial superior en modo claro */}
           <div 
             className={`absolute inset-0 ${
               isDark
                 ? "bg-gradient-to-t from-[#070908] via-transparent to-[#070908]/30"
-                : "bg-gradient-to-t from-[#F8F9F8] via-transparent to-[#F8F9F8]/25"
+                : "bg-gradient-to-t from-[#F8F9F8] via-[#F8F9F8]/60 to-[#F8F9F8]/40"
             }`}
             aria-hidden="true"
           />
@@ -257,18 +257,24 @@ export default function Landing({
               e.preventDefault();
               window.scrollTo({ top: 0, behavior: reducedMotion ? "auto" : "smooth" });
             }}
-            className="flex items-center gap-2 group focus-visible:outline-2 focus-visible:outline-jade-500"
+            className={`flex items-center gap-2 group px-3.5 py-1.5 rounded-full backdrop-blur-md transition-all focus-visible:outline-2 focus-visible:outline-jade-500 ${
+              isDark ? "bg-black/20 border border-white/10" : "bg-white/85 border border-white/80 shadow-xs"
+            }`}
           >
             <span className={`font-bold text-xl sm:text-2xl tracking-tighter uppercase font-sans ${isDark ? "text-white" : "text-ink"}`}>
               Truekly<span className="text-jade-500">®</span>
             </span>
           </a>
 
-          {/* Menú Central Discreto */}
-          <nav className={`hidden md:flex items-center gap-8 text-xs font-semibold uppercase tracking-widest ${isDark ? "text-white/70" : "text-ink/70"}`}>
-            <a href="#manifiesto" className={`transition-colors ${isDark ? "hover:text-white" : "hover:text-ink"}`}>Filosofía</a>
-            <a href="#comparativa" className={`transition-colors ${isDark ? "hover:text-white" : "hover:text-ink"}`}>Por qué Truekly</a>
-            <a href="#protocolo" className={`transition-colors ${isDark ? "hover:text-white" : "hover:text-ink"}`}>Protocolo</a>
+          {/* Menú Central Discreto con fondo legible */}
+          <nav className={`hidden md:flex items-center gap-1 sm:gap-2 text-xs font-semibold uppercase tracking-widest px-4 py-1.5 rounded-full backdrop-blur-md transition-all ${
+            isDark 
+              ? "bg-white/5 border border-white/10 text-white/80" 
+              : "bg-white/85 border border-white/80 text-ink shadow-xs"
+          }`}>
+            <a href="#manifiesto" className={`px-3 py-1 rounded-full transition-colors ${isDark ? "hover:text-white hover:bg-white/10" : "hover:text-jade-700 hover:bg-paper"}`}>Filosofía</a>
+            <a href="#comparativa" className={`px-3 py-1 rounded-full transition-colors ${isDark ? "hover:text-white hover:bg-white/10" : "hover:text-jade-700 hover:bg-paper"}`}>Por qué Truekly</a>
+            <a href="#protocolo" className={`px-3 py-1 rounded-full transition-colors ${isDark ? "hover:text-white hover:bg-white/10" : "hover:text-jade-700 hover:bg-paper"}`}>Protocolo</a>
           </nav>
 
           {/* Acciones de Cabecera */}
@@ -401,10 +407,12 @@ export default function Landing({
         {/* BASE DEL HERO: TITULAR MONUMENTAL LYNIQ (Borde a Borde) */}
         <div className="relative z-20 w-full overflow-hidden pb-2">
           
-          {/* Titular Masivo que ocupa todo el ancho */}
+          {/* Titular Masivo que ocupa todo el ancho con halo de contraste en modo claro */}
           <div className={`opacity-0 ${isLoaded ? "lyniq-headline-enter" : ""}`}>
             <h1 className={`text-[clamp(34px,11vw,200px)] font-bold tracking-[-0.05em] leading-[0.88] uppercase select-none text-left ${
-              isDark ? "text-white" : "text-ink"
+              isDark
+                ? "text-white"
+                : "text-ink drop-shadow-[0_2px_18px_rgba(255,255,255,0.95)] drop-shadow-[0_4px_32px_rgba(255,255,255,0.85)]"
             }`}>
               Intercambio
             </h1>
@@ -414,11 +422,17 @@ export default function Landing({
           <div className={`mt-5 sm:mt-6 pt-4 sm:pt-5 border-t flex flex-col md:flex-row md:items-end justify-between gap-4 sm:gap-6 opacity-0 ${
             isDark ? "border-white/15" : "border-line"
           } ${isLoaded ? "lyniq-spring-nav" : ""}`}>
-            <p className={`max-w-xl text-xs sm:text-base leading-relaxed font-normal ${
-              isDark ? "text-white/80" : "text-ink/80"
+            <div className={`max-w-xl rounded-2xl p-3 sm:p-4 backdrop-blur-md transition-colors ${
+              isDark
+                ? "bg-black/35 border border-white/10"
+                : "bg-white/85 border border-white/80 shadow-xs"
             }`}>
-              Cambia lo que tienes por lo que necesitas. La primera plataforma de trueque directo entre personas con perfiles verificados y acuerdos claros antes de salir de casa.
-            </p>
+              <p className={`text-xs sm:text-base leading-relaxed font-normal ${
+                isDark ? "text-white/90" : "text-ink"
+              }`}>
+                Cambia lo que tienes por lo que necesitas. La primera plataforma de trueque directo entre personas con perfiles verificados y acuerdos claros antes de salir de casa.
+              </p>
+            </div>
 
             <div className="flex items-center gap-4 shrink-0 w-full sm:w-auto">
               <a
