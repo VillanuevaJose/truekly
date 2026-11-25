@@ -48,9 +48,9 @@ export function PublishSuccessView({ onExplore }: SuccessProps) {
         <CheckCircle2 className="h-7 w-7" />
       </div>
       <div className="space-y-1">
-        <h3 className="text-base font-bold text-ink">¡Tu objeto ya está en el feed!</h3>
+        <h3 className="text-base font-bold text-ink dark:text-white">¡Solicitud enviada a revisión!</h3>
         <p className="text-xs text-sage-500 dark:text-sage-400 max-w-sm mx-auto">
-          Otros usuarios podrán ver tus fotos y enviarte propuestas directas por el chat seguro.
+          Tu publicación pasará por una revisión de nuestro equipo. Se publicará automáticamente en el feed cuando sea aprobada y te enviaremos una notificación con el resultado.
         </p>
       </div>
       <button
@@ -58,7 +58,7 @@ export function PublishSuccessView({ onExplore }: SuccessProps) {
         onClick={onExplore}
         className="mt-2 inline-flex items-center rounded-xl bg-jade-600 px-6 py-2.5 text-xs font-semibold text-white shadow-xs hover:bg-jade-700"
       >
-        Explorar en el Feed
+        Entendido, volver al Feed
       </button>
     </div>
   );

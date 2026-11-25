@@ -73,6 +73,7 @@ export function PublishModal({ isOpen, onClose, onPublishSuccess, onRequireAuth 
       description: formData.description.trim(),
       safePointRecommended: formData.safePointRecommended,
       isFeatured: true,
+      estadoRevision: "pendiente",
     };
 
     await new Promise((r) => setTimeout(r, 600));

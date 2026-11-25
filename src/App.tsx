@@ -14,6 +14,7 @@ const LoginPage = lazy(() => import("./pages/auth/LoginPage"));
 const RegisterPage = lazy(() => import("./pages/auth/RegisterPage"));
 const ProfilePage = lazy(() => import("./pages/ProfilePage"));
 const MessagesPage = lazy(() => import("./pages/MessagesPage"));
+const AdminPage = lazy(() => import("./pages/AdminPage"));
 
 function PageLoadingFallback() {
   return (
@@ -31,8 +32,11 @@ function MainView() {
   const navigate = useNavigate();
 
   const [currentView, setCurrentView] = useState<
-    "landing" | "feed" | "product" | "profile" | "messages"
+    "landing" | "feed" | "product" | "profile" | "messages" | "admin"
   >(() => {
+    if (window.location.hash === "#admin") {
+      return "admin";
+    }
     if (window.location.hash === "#perfil") {
       return "profile";
     }
@@ -84,6 +88,10 @@ function MainView() {
             setCurrentView("product");
           }
         });
+        return;
+      }
+      if (hash === "#admin") {
+        setCurrentView("admin");
         return;
       }
       if (hash === "#perfil") {
@@ -196,6 +204,10 @@ function MainView() {
     );
   }
 
+  if (currentView === "admin") {
+    return <AdminPage onBack={navigateToFeed} />;
+  }
+
   if (currentView === "profile") {
     return (
       <ProfilePage
@@ -246,6 +258,7 @@ export function App() {
             <Routes>
               <Route path="/" element={<MainView />} />
               <Route path="/perfil" element={<ProfilePage />} />
+              <Route path="/admin" element={<AdminPage />} />
               <Route path="/mensajes" element={<MessagesPage onBack={() => { window.location.hash = "#feed"; }} />} />
               <Route path="/ingresar" element={<LoginPage />} />
               <Route path="/registro" element={<RegisterPage />} />

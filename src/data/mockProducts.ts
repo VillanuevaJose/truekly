@@ -40,6 +40,8 @@ export type Product = {
   distanceKm?: number;
   safePointRecommended?: string;
   userId?: string;
+  estadoRevision?: "pendiente" | "aprobada" | "rechazada";
+  motivoRechazo?: string;
 };
 
 export type Community = {

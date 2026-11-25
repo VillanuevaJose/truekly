@@ -13,6 +13,7 @@ export interface AuthUser {
   email: string;
   fotoPerfil?: string | null;
   verificado?: boolean;
+  role?: "user" | "admin";
 }
 
 export interface AuthContextType {
@@ -59,6 +60,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           email: data.email || fallbackEmail || "",
           fotoPerfil: data.avatar_url || null,
           verificado: data.identidad_verificada,
+          role: data.role === "admin" ? "admin" : "user",
         };
         setUser(profileUser);
         try {

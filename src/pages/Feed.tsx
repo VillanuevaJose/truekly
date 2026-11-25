@@ -29,9 +29,16 @@ import {
   Moon,
   X,
   MessageCircle,
+  Bell,
 } from "lucide-react";
 import { useAuth } from "../context/AuthContext";
 import { useTheme } from "../context/ThemeContext";
+import {
+  fetchNotifications,
+  markAllNotificationsAsRead,
+  markNotificationAsRead,
+  type AppNotification,
+} from "../services/notificationService";
 import {
   products,
   mockCommunities,
@@ -392,20 +399,46 @@ export default function Feed({
   const [isMobileFiltersOpen, setIsMobileFiltersOpen] = useState(false);
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
+  const [notifications, setNotifications] = useState<AppNotification[]>([]);
+  const [isNotifOpen, setIsNotifOpen] = useState(false);
+  const notifRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (!user?.id) {
+      setNotifications([]);
+      return;
+    }
+    let active = true;
+    const loadNotifs = () => {
+      fetchNotifications(user.id!).then((items) => {
+        if (active) setNotifications(items);
+      });
+    };
+    loadNotifs();
+    const timer = window.setInterval(loadNotifs, 15000);
+    return () => {
+      active = false;
+      window.clearInterval(timer);
+    };
+  }, [user?.id]);
 
   useEffect(() => {
     const handleClickOutside = (e: MouseEvent) => {
       if (menuRef.current && !menuRef.current.contains(e.target as Node)) {
         setIsMenuOpen(false);
       }
+      if (notifRef.current && !notifRef.current.contains(e.target as Node)) {
+        setIsNotifOpen(false);
+      }
     };
     const handleKeyDown = (e: KeyboardEvent) => {
       if (e.key === "Escape") {
         setIsMenuOpen(false);
+        setIsNotifOpen(false);
       }
     };
 
-    if (isMenuOpen) {
+    if (isMenuOpen || isNotifOpen) {
       document.addEventListener("mousedown", handleClickOutside);
       document.addEventListener("keydown", handleKeyDown);
     }
@@ -413,7 +446,12 @@ export default function Feed({
       document.removeEventListener("mousedown", handleClickOutside);
       document.removeEventListener("keydown", handleKeyDown);
     };
-  }, [isMenuOpen]);
+  }, [isMenuOpen, isNotifOpen]);
+
+  const unreadNotifCount = useMemo(
+    () => notifications.filter((n) => !n.leida).length,
+    [notifications]
+  );
 
   const userInitials = useMemo(() => {
     if (!user) return "";
@@ -1013,6 +1051,96 @@ export default function Feed({
                   <MessageCircle size={19} className="text-jade-700 dark:text-jade-400" />
                 </button>
 
+                {/* Campana de Notificaciones */}
+                <div className="relative" ref={notifRef}>
+                  <button
+                    type="button"
+                    onClick={() => setIsNotifOpen((prev) => !prev)}
+                    aria-expanded={isNotifOpen}
+                    aria-label="Notificaciones"
+                    title="Notificaciones"
+                    className="relative flex h-[40px] w-[40px] shrink-0 items-center justify-center rounded-full border border-line bg-paper dark:bg-white/10 text-ink dark:text-white transition-transform duration-150 hover:scale-105 active:scale-95 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-jade-500"
+                  >
+                    <Bell size={18} className="text-ink dark:text-white" />
+                    {unreadNotifCount > 0 && (
+                      <span className="absolute -right-0.5 -top-0.5 flex h-4 min-w-[16px] items-center justify-center rounded-full bg-[#F39200] px-1 text-[10px] font-bold text-[#0E4F45]">
+                        {unreadNotifCount > 9 ? "9+" : unreadNotifCount}
+                      </span>
+                    )}
+                  </button>
+
+                  {isNotifOpen && (
+                    <div
+                      role="region"
+                      aria-label="Panel de notificaciones"
+                      className="absolute right-0 top-full mt-2 w-80 max-w-[90vw] rounded-2xl border border-line bg-white dark:bg-[#141715] dark:border-white/10 p-3 shadow-xl z-50"
+                    >
+                      <div className="flex items-center justify-between pb-2 border-b border-line dark:border-white/10">
+                        <span className="text-xs font-bold text-ink dark:text-white">
+                          Notificaciones
+                        </span>
+                        {unreadNotifCount > 0 && user?.id && (
+                          <button
+                            type="button"
+                            onClick={async () => {
+                              await markAllNotificationsAsRead(user.id!);
+                              setNotifications((prev) => prev.map((n) => ({ ...n, leida: true })));
+                            }}
+                            className="text-[11px] font-semibold text-jade-600 dark:text-jade-400 hover:underline"
+                          >
+                            Marcar leídas
+                          </button>
+                        )}
+                      </div>
+
+                      <div className="mt-2 max-h-72 overflow-y-auto space-y-1.5">
+                        {notifications.length === 0 ? (
+                          <p className="py-6 text-center text-xs text-sage-500 dark:text-white/50">
+                            No tienes notificaciones por ahora.
+                          </p>
+                        ) : (
+                          notifications.map((n) => {
+                            const isRejected = n.tipo === "publicacion_rechazada";
+                            return (
+                              <button
+                                key={n.id}
+                                type="button"
+                                onClick={async () => {
+                                  if (!n.leida) {
+                                    await markNotificationAsRead(n.id);
+                                    setNotifications((prev) =>
+                                      prev.map((item) =>
+                                        item.id === n.id ? { ...item, leida: true } : item
+                                      )
+                                    );
+                                  }
+                                }}
+                                className={`w-full text-left rounded-xl p-2.5 text-xs transition ${
+                                  n.leida
+                                    ? "bg-paper/50 dark:bg-white/5 text-ink-soft dark:text-white/70"
+                                    : isRejected
+                                    ? "bg-red-50/80 dark:bg-red-950/30 border border-red-200 dark:border-red-500/30 text-ink dark:text-white"
+                                    : "bg-jade-50/80 dark:bg-jade-950/30 border border-jade-200 dark:border-jade-500/30 text-ink dark:text-white"
+                                }`}
+                              >
+                                <p className="leading-relaxed">{n.contenido}</p>
+                                <span className="mt-1 block text-[10px] text-sage-500 dark:text-white/40">
+                                  {new Date(n.fecha).toLocaleString("es-PE", {
+                                    day: "2-digit",
+                                    month: "short",
+                                    hour: "2-digit",
+                                    minute: "2-digit",
+                                  })}
+                                </span>
+                              </button>
+                            );
+                          })
+                        )}
+                      </div>
+                    </div>
+                  )}
+                </div>
+
                 {/* Botón Publicar (circular 44px, fondo naranja, ícono verde oscuro) */}
                 <button
                   type="button"
@@ -1106,6 +1234,21 @@ export default function Feed({
                         <Package size={15} className="text-sage-500 dark:text-white/60" />
                         <span>Mis publicaciones</span>
                       </button>
+
+                      {user.role === "admin" && (
+                        <button
+                          type="button"
+                          role="menuitem"
+                          onClick={() => {
+                            setIsMenuOpen(false);
+                            window.location.hash = "#admin";
+                          }}
+                          className="flex w-full items-center gap-2.5 rounded-xl px-3 py-2 text-xs font-semibold text-jade-700 dark:text-jade-400 transition hover:bg-jade-50 dark:hover:bg-jade-950/30 focus-visible:outline-2 focus-visible:outline-jade-500"
+                        >
+                          <ShieldCheck size={15} className="text-jade-600 dark:text-jade-400" />
+                          <span>Panel de Moderación</span>
+                        </button>
+                      )}
 
                       <div className="my-1.5 border-t border-line dark:border-white/10" />
 
@@ -1714,8 +1857,7 @@ export default function Feed({
         isOpen={isPublishOpen}
         onClose={() => setIsPublishOpen(false)}
         onPublishSuccess={async (newProduct) => {
-          const saved = await savePublication(newProduct, user?.id);
-          setProductList((prev) => [saved, ...prev.filter((p) => p.id !== saved.id)]);
+          await savePublication(newProduct, user?.id);
         }}
         onRequireAuth={onOpenAuth}
       />

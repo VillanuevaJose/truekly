@@ -22,7 +22,7 @@ import {
 import { useAuth } from "../context/AuthContext";
 import { PublishModal } from "../components/publish/PublishModal";
 import type { Product } from "../data/mockProducts";
-import { fetchPublications, savePublication } from "../services/publicationService";
+import { fetchMyPublications, savePublication } from "../services/publicationService";
 import { maskNameYape, maskEmailAddress } from "../utils/privacy";
 import {
   fetchUserTrades,
@@ -52,13 +52,8 @@ export default function ProfilePage({ onBack, onNavigateToFeed }: ProfilePagePro
   useEffect(() => {
     let isMounted = true;
     if (user?.id) {
-      fetchPublications().then((pubs) => {
+      fetchMyPublications(user.id).then((myPubs) => {
         if (!isMounted) return;
-        const myPubs = pubs.filter(
-          (p) =>
-            (p.userId && p.userId === user.id) ||
-            (user.username && p.owner.name === `@${user.username}`)
-        );
         setUserPublications(myPubs);
       });
 
@@ -400,11 +395,28 @@ export default function ProfilePage({ onBack, onNavigateToFeed }: ProfilePagePro
                           Busca: <span className="text-ink font-medium">{pub.wantsInReturn}</span>
                         </p>
                         <div className="mt-2.5 flex items-center justify-between border-t border-line/60 pt-2">
-                          <span className="inline-flex items-center rounded-full bg-jade-50 px-2 py-0.5 text-[10px] font-medium text-jade-700">
-                            Activa
+                          <span
+                            className={`inline-flex items-center rounded-full px-2 py-0.5 text-[10px] font-medium ${
+                              pub.estadoRevision === "pendiente"
+                                ? "bg-amber-50 text-amber-700"
+                                : pub.estadoRevision === "rechazada"
+                                ? "bg-red-50 text-red-700"
+                                : "bg-jade-50 text-jade-700"
+                            }`}
+                          >
+                            {pub.estadoRevision === "pendiente"
+                              ? "En revisión"
+                              : pub.estadoRevision === "rechazada"
+                              ? "Rechazada"
+                              : "Publicada"}
                           </span>
                           <span className="text-[10px] text-sage-400 capitalize">{pub.condition}</span>
                         </div>
+                        {pub.estadoRevision === "rechazada" && pub.motivoRechazo && (
+                          <p className="mt-1.5 text-[10px] text-red-600 line-clamp-2">
+                            Motivo: {pub.motivoRechazo}
+                          </p>
+                        )}
                       </div>
                     </div>
                   ))}

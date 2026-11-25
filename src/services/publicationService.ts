@@ -18,6 +18,8 @@ export interface PublicationRow {
   owner_name: string;
   owner_avatar: string | null;
   owner_verified: boolean;
+  estado_revision?: "pendiente" | "aprobada" | "rechazada";
+  motivo_rechazo?: string | null;
   created_at?: string;
 }
 
@@ -42,6 +44,8 @@ export function mapRowToProduct(row: PublicationRow): Product {
     },
     isFeatured: true,
     userId: row.user_id || undefined,
+    estadoRevision: row.estado_revision || "aprobada",
+    motivoRechazo: row.motivo_rechazo || undefined,
   };
 }
 
@@ -66,12 +70,15 @@ function saveLocalPublications(items: Product[]): void {
  * Obtiene todas las publicaciones de Supabase y las combina con el almacenamiento local
  */
 export async function fetchPublications(): Promise<Product[]> {
-  const localItems = getLocalPublications();
+  const localItems = getLocalPublications().filter(
+    (p) => !p.estadoRevision || p.estadoRevision === "aprobada"
+  );
 
   try {
     const { data, error } = await supabase
       .from("publicacion")
       .select("*")
+      .eq("estado_revision", "aprobada")
       .order("created_at", { ascending: false });
 
     if (!error && data) {
@@ -80,7 +87,6 @@ export async function fetchPublications(): Promise<Product[]> {
       localItems.forEach((item) => map.set(item.id, item));
       remoteItems.forEach((item) => map.set(item.id, item));
       const combined = Array.from(map.values());
-      saveLocalPublications(combined);
       return combined;
     }
   } catch (err) {
@@ -88,6 +94,69 @@ export async function fetchPublications(): Promise<Product[]> {
   }
 
   return localItems;
+}
+
+export async function fetchMyPublications(userId: string): Promise<Product[]> {
+  if (!userId) return [];
+  const localMine = getLocalPublications().filter((p) => p.userId === userId);
+  try {
+    const { data, error } = await supabase
+      .from("publicacion")
+      .select("*")
+      .eq("user_id", userId)
+      .order("created_at", { ascending: false });
+    if (!error && data) {
+      return (data as PublicationRow[]).map(mapRowToProduct);
+    }
+  } catch {
+    // fallback local
+  }
+  return localMine;
+}
+
+export async function fetchPendingPublications(): Promise<Product[]> {
+  try {
+    const { data, error } = await supabase
+      .from("publicacion")
+      .select("*")
+      .eq("estado_revision", "pendiente")
+      .order("created_at", { ascending: true });
+
+    if (!error && data) {
+      return (data as PublicationRow[]).map(mapRowToProduct);
+    }
+  } catch (err) {
+    console.warn("[publicationService] Error al listar publicaciones pendientes:", err);
+  }
+  return [];
+}
+
+export async function reviewPublication(
+  publicationId: string,
+  decision: "aprobada" | "rechazada",
+  motivo?: string
+): Promise<{ ok: boolean; error?: string }> {
+  try {
+    const { error } = await supabase.rpc("revisar_publicacion", {
+      p_publicacion_id: publicationId,
+      p_decision: decision,
+      p_motivo: motivo?.trim() || null,
+    });
+    if (error) {
+      return { ok: false, error: error.message };
+    }
+    const local = getLocalPublications();
+    saveLocalPublications(
+      local.map((p) =>
+        p.id === publicationId
+          ? { ...p, estadoRevision: decision, motivoRechazo: motivo?.trim() || undefined }
+          : p
+      )
+    );
+    return { ok: true };
+  } catch (err) {
+    return { ok: false, error: err instanceof Error ? err.message : "Error inesperado" };
+  }
 }
 
 export function buildRowPayload(p: Product, uid: string | null): PublicationRow {
@@ -106,6 +175,8 @@ export function buildRowPayload(p: Product, uid: string | null): PublicationRow 
     owner_name: p.owner.name,
     owner_avatar: p.owner.avatar || null,
     owner_verified: Boolean(p.owner.verified),
+    estado_revision: p.estadoRevision || "pendiente",
+    motivo_rechazo: p.motivoRechazo || null,
   };
 }
 
