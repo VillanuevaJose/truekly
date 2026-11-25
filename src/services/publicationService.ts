@@ -70,10 +70,6 @@ function saveLocalPublications(items: Product[]): void {
  * Obtiene todas las publicaciones de Supabase y las combina con el almacenamiento local
  */
 export async function fetchPublications(): Promise<Product[]> {
-  const localItems = getLocalPublications().filter(
-    (p) => !p.estadoRevision || p.estadoRevision === "aprobada"
-  );
-
   try {
     const { data, error } = await supabase
       .from("publicacion")
@@ -82,18 +78,13 @@ export async function fetchPublications(): Promise<Product[]> {
       .order("created_at", { ascending: false });
 
     if (!error && data) {
-      const remoteItems = (data as PublicationRow[]).map(mapRowToProduct);
-      const map = new Map<string, Product>();
-      localItems.forEach((item) => map.set(item.id, item));
-      remoteItems.forEach((item) => map.set(item.id, item));
-      const combined = Array.from(map.values());
-      return combined;
+      return (data as PublicationRow[]).map(mapRowToProduct);
     }
   } catch (err) {
     console.warn("[publicationService] Supabase no disponible, usando cache local:", err);
   }
 
-  return localItems;
+  return getLocalPublications().filter((p) => p.estadoRevision === "aprobada");
 }
 
 export async function fetchMyPublications(userId: string): Promise<Product[]> {
@@ -232,7 +223,11 @@ export async function syncLocalPublications(): Promise<void> {
     for (const item of localItems) {
       if (!item.userId || item.userId === currentUserId) {
         const payload = buildRowPayload(item, currentUserId);
-        await supabase.from("publicacion").upsert(payload);
+        // ignoreDuplicates evita sobrescribir estado_revision/motivo_rechazo ya moderados en Supabase
+        await supabase.from("publicacion").upsert(payload, {
+          onConflict: "id",
+          ignoreDuplicates: true,
+        });
       }
     }
   } catch (err) {

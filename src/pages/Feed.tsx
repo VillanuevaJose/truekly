@@ -39,6 +39,7 @@ import {
   markNotificationAsRead,
   type AppNotification,
 } from "../services/notificationService";
+import { supabase } from "../lib/supabaseClient";
 import {
   products,
   mockCommunities,
@@ -415,10 +416,27 @@ export default function Feed({
       });
     };
     loadNotifs();
-    const timer = window.setInterval(loadNotifs, 15000);
+    const timer = window.setInterval(loadNotifs, 10000);
+    const channel = supabase
+      .channel(`notifs-${user.id}`)
+      .on(
+        "postgres_changes",
+        {
+          event: "INSERT",
+          schema: "public",
+          table: "notificacion",
+          filter: `usuario_id=eq.${user.id}`,
+        },
+        () => {
+          loadNotifs();
+        }
+      )
+      .subscribe();
+
     return () => {
       active = false;
       window.clearInterval(timer);
+      supabase.removeChannel(channel);
     };
   }, [user?.id]);
 
@@ -1068,7 +1086,13 @@ export default function Feed({
                 <div className="relative" ref={notifRef}>
                   <button
                     type="button"
-                    onClick={() => setIsNotifOpen((prev) => !prev)}
+                    onClick={() => {
+                      const next = !isNotifOpen;
+                      setIsNotifOpen(next);
+                      if (next && user?.id) {
+                        fetchNotifications(user.id).then(setNotifications);
+                      }
+                    }}
                     aria-expanded={isNotifOpen}
                     aria-label="Notificaciones"
                     title="Notificaciones"
