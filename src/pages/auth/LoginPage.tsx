@@ -51,6 +51,7 @@ export default function LoginPage() {
           .maybeSingle();
 
         if (profile) {
+          const isAdmin = profile.role === "admin";
           login({
             id: profile.id,
             nombre: profile.nombre_reniec || `${profile.primer_nombre} ${profile.apellido_paterno}`.trim(),
@@ -62,7 +63,13 @@ export default function LoginPage() {
             email: profile.email || cleanEmail,
             fotoPerfil: profile.avatar_url || null,
             verificado: profile.identidad_verificada,
+            role: isAdmin ? "admin" : "user",
           });
+          if (isAdmin) {
+            window.location.hash = "#admin";
+            navigate("/#admin");
+            return;
+          }
         } else {
           // Fallback a metadata si el perfil no estuviera sincronizado aún
           const meta = data.user.user_metadata;

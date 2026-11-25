@@ -38,6 +38,10 @@ export default function AdminPage({ onBack }: AdminPageProps) {
   useEffect(() => {
     if (user?.role === "admin") {
       loadPending();
+      const timer = window.setInterval(() => {
+        fetchPendingPublications().then(setPending);
+      }, 10000);
+      return () => window.clearInterval(timer);
     } else {
       setLoading(false);
     }

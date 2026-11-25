@@ -75,6 +75,25 @@ CREATE POLICY publicacion_delete_own ON public.publicacion
   FOR DELETE
   USING (auth.uid() = user_id OR public.is_admin());
 
+-- 4b. Ajustar constraints de notificacion (permitir tipos de moderación y apuntar FK a auth.users)
+ALTER TABLE public.notificacion
+  DROP CONSTRAINT IF EXISTS notificacion_tipo_check;
+ALTER TABLE public.notificacion
+  ADD CONSTRAINT notificacion_tipo_check CHECK (
+    tipo::text = ANY (
+      ARRAY[
+        'chat', 'intercambio', 'sistema', 'comunidad', 'subasta', 'reporte',
+        'publicacion_aprobada', 'publicacion_rechazada'
+      ]::text[]
+    )
+  );
+
+ALTER TABLE public.notificacion
+  DROP CONSTRAINT IF EXISTS notificacion_usuario_id_fkey;
+ALTER TABLE public.notificacion
+  ADD CONSTRAINT notificacion_usuario_id_fkey
+  FOREIGN KEY (usuario_id) REFERENCES auth.users(id) ON DELETE CASCADE;
+
 -- 5. RPC transaccional para aprobar o rechazar publicaciones y notificar al autor
 CREATE OR REPLACE FUNCTION public.revisar_publicacion(
   p_publicacion_id text,

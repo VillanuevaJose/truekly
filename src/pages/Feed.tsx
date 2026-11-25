@@ -1037,6 +1037,19 @@ export default function Feed({
             {/* Accesos rápidos / Estado de autenticación */}
             {user ? (
               <div className="flex shrink-0 items-center gap-2 sm:gap-3">
+                {user.role === "admin" && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      window.location.hash = "#admin";
+                    }}
+                    className="inline-flex items-center gap-1.5 rounded-full bg-jade-600 px-3 py-2 text-xs font-semibold text-white shadow-xs transition hover:bg-jade-700"
+                  >
+                    <ShieldCheck size={15} />
+                    <span className="hidden sm:inline">Panel Admin</span>
+                  </button>
+                )}
+
                 {/* Acceso directo a Mensajes de Trueque */}
                 <button
                   type="button"
