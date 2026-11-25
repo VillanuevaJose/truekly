@@ -154,7 +154,10 @@ BEGIN
 END;
 $$;
 
--- 6. Habilitar Realtime para notificacion
+-- 6. Permisos Data API y Realtime para notificacion
+REVOKE TRUNCATE ON public.notificacion FROM anon, authenticated;
+GRANT SELECT, UPDATE, DELETE ON public.notificacion TO authenticated;
+
 DO $$
 BEGIN
   IF NOT EXISTS (
