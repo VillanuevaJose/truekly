@@ -153,3 +153,14 @@ BEGIN
   END IF;
 END;
 $$;
+
+-- 6. Habilitar Realtime para notificacion
+DO $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_publication_tables
+    WHERE pubname = 'supabase_realtime' AND schemaname = 'public' AND tablename = 'notificacion'
+  ) THEN
+    ALTER PUBLICATION supabase_realtime ADD TABLE public.notificacion;
+  END IF;
+END $$;

@@ -402,21 +402,40 @@ export default function Feed({
   const menuRef = useRef<HTMLDivElement>(null);
   const [notifications, setNotifications] = useState<AppNotification[]>([]);
   const [isNotifOpen, setIsNotifOpen] = useState(false);
+  const [latestToast, setLatestToast] = useState<AppNotification | null>(null);
+  const knownNotifIdsRef = useRef<Set<string>>(new Set());
+  const notifInitializedRef = useRef(false);
   const notifRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     if (!user?.id) {
       setNotifications([]);
+      knownNotifIdsRef.current.clear();
+      notifInitializedRef.current = false;
       return;
     }
     let active = true;
     const loadNotifs = () => {
       fetchNotifications(user.id!).then((items) => {
-        if (active) setNotifications(items);
+        if (!active) return;
+        setNotifications(items);
+        if (!notifInitializedRef.current) {
+          items.forEach((i) => knownNotifIdsRef.current.add(i.id));
+          notifInitializedRef.current = true;
+          return;
+        }
+        const newest = items.find((i) => !i.leida && !knownNotifIdsRef.current.has(i.id));
+        items.forEach((i) => knownNotifIdsRef.current.add(i.id));
+        if (newest) {
+          setLatestToast(newest);
+          window.setTimeout(() => {
+            setLatestToast((curr) => (curr?.id === newest.id ? null : curr));
+          }, 7000);
+        }
       });
     };
     loadNotifs();
-    const timer = window.setInterval(loadNotifs, 10000);
+    const timer = window.setInterval(loadNotifs, 8000);
     const channel = supabase
       .channel(`notifs-${user.id}`)
       .on(
@@ -1009,6 +1028,28 @@ export default function Feed({
 
   return (
     <div className="min-h-screen bg-paper font-body text-ink antialiased">
+      {latestToast && (
+        <div
+          role="status"
+          className={`fixed bottom-4 right-4 z-50 max-w-sm rounded-2xl border p-3.5 shadow-xl backdrop-blur-md transition ${
+            latestToast.tipo === "publicacion_rechazada"
+              ? "border-red-300 bg-red-50/95 text-red-900 dark:border-red-500/40 dark:bg-red-950/95 dark:text-red-100"
+              : "border-jade-300 bg-jade-50/95 text-jade-900 dark:border-jade-500/40 dark:bg-jade-950/95 dark:text-jade-100"
+          }`}
+        >
+          <div className="flex items-start justify-between gap-2">
+            <p className="text-xs font-medium leading-relaxed">{latestToast.contenido}</p>
+            <button
+              type="button"
+              onClick={() => setLatestToast(null)}
+              aria-label="Cerrar aviso"
+              className="shrink-0 rounded-lg p-1 opacity-70 hover:opacity-100"
+            >
+              <X size={14} />
+            </button>
+          </div>
+        </div>
+      )}
       {/* Header principal y barra de navegación por módulos sticky */}
       <div className="sticky top-0 z-30 bg-white dark:bg-[#0C0E0D]">
         <header className="border-b border-line bg-white/95 dark:bg-[#0C0E0D]/95 backdrop-blur-sm">
