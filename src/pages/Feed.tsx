@@ -1031,7 +1031,7 @@ export default function Feed({
       {latestToast && (
         <div
           role="status"
-          className={`fixed bottom-4 right-4 z-50 max-w-sm rounded-2xl border p-3.5 shadow-xl backdrop-blur-md transition ${
+          className={`fixed top-20 right-4 z-50 max-w-sm rounded-2xl border p-3.5 shadow-xl backdrop-blur-md transition ${
             latestToast.tipo === "publicacion_rechazada"
               ? "border-red-300 bg-red-50/95 text-red-900 dark:border-red-500/40 dark:bg-red-950/95 dark:text-red-100"
               : "border-jade-300 bg-jade-50/95 text-jade-900 dark:border-jade-500/40 dark:bg-jade-950/95 dark:text-jade-100"

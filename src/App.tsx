@@ -15,6 +15,9 @@ const RegisterPage = lazy(() => import("./pages/auth/RegisterPage"));
 const ProfilePage = lazy(() => import("./pages/ProfilePage"));
 const MessagesPage = lazy(() => import("./pages/MessagesPage"));
 const AdminPage = lazy(() => import("./pages/AdminPage"));
+const HelpChatbot = lazy(() =>
+  import("./components/help/HelpChatbot").then((m) => ({ default: m.HelpChatbot }))
+);
 
 function PageLoadingFallback() {
   return (
@@ -172,25 +175,28 @@ function MainView() {
 
   if (currentView === "product" && selectedProduct) {
     return (
-      <PublicationDetail
-        product={selectedProduct}
-        relatedProducts={products.filter(
-          (p) => p.id !== selectedProduct.id && p.category === selectedProduct.category
-        )}
-        onBack={handleBackToOrigin}
-        onSelectProduct={handleSelectProduct}
-        onOpenAuth={handleOpenAuth}
-        onOpenChat={(pubId) => {
-          setMessagesPubId(pubId);
-          window.location.hash = `#mensajes/${pubId}`;
-          setCurrentView("messages");
-        }}
-        onDeleteProduct={async (id) => {
-          await removePublication(id);
-          setSelectedProduct(null);
-          handleBackToOrigin();
-        }}
-      />
+      <>
+        <PublicationDetail
+          product={selectedProduct}
+          relatedProducts={products.filter(
+            (p) => p.id !== selectedProduct.id && p.category === selectedProduct.category
+          )}
+          onBack={handleBackToOrigin}
+          onSelectProduct={handleSelectProduct}
+          onOpenAuth={handleOpenAuth}
+          onOpenChat={(pubId) => {
+            setMessagesPubId(pubId);
+            window.location.hash = `#mensajes/${pubId}`;
+            setCurrentView("messages");
+          }}
+          onDeleteProduct={async (id) => {
+            await removePublication(id);
+            setSelectedProduct(null);
+            handleBackToOrigin();
+          }}
+        />
+        <HelpChatbot />
+      </>
     );
   }
 
@@ -210,42 +216,51 @@ function MainView() {
 
   if (currentView === "profile") {
     return (
-      <ProfilePage
-        onBack={handleBackToOrigin}
-        onNavigateToFeed={navigateToFeed}
-      />
+      <>
+        <ProfilePage
+          onBack={handleBackToOrigin}
+          onNavigateToFeed={navigateToFeed}
+        />
+        <HelpChatbot />
+      </>
     );
   }
 
   if (currentView === "feed") {
     return (
-      <Feed
-        onNavigateToLanding={() => {
-          scrollPositionsRef.current.feed = window.scrollY;
-          navigateToLanding();
-        }}
-        onOpenAuth={(mode) => handleOpenAuth(mode || "login")}
-        onSelectProduct={handleSelectProduct}
-        onOpenProfile={() => handleOpenProfileFromOrigin("feed")}
-        onOpenMessages={() => {
-          setMessagesPubId(null);
-          window.location.hash = "#mensajes";
-          setCurrentView("messages");
-        }}
-      />
+      <>
+        <Feed
+          onNavigateToLanding={() => {
+            scrollPositionsRef.current.feed = window.scrollY;
+            navigateToLanding();
+          }}
+          onOpenAuth={(mode) => handleOpenAuth(mode || "login")}
+          onSelectProduct={handleSelectProduct}
+          onOpenProfile={() => handleOpenProfileFromOrigin("feed")}
+          onOpenMessages={() => {
+            setMessagesPubId(null);
+            window.location.hash = "#mensajes";
+            setCurrentView("messages");
+          }}
+        />
+        <HelpChatbot />
+      </>
     );
   }
 
   return (
-    <Landing
-      onNavigateToFeed={() => {
-        scrollPositionsRef.current.landing = window.scrollY;
-        navigateToFeed();
-      }}
-      onSelectProduct={(prod) => handleSelectProduct(prod)}
-      onOpenAuth={() => handleOpenAuth("login")}
-      onOpenProfile={() => handleOpenProfileFromOrigin("landing")}
-    />
+    <>
+      <Landing
+        onNavigateToFeed={() => {
+          scrollPositionsRef.current.landing = window.scrollY;
+          navigateToFeed();
+        }}
+        onSelectProduct={(prod) => handleSelectProduct(prod)}
+        onOpenAuth={() => handleOpenAuth("login")}
+        onOpenProfile={() => handleOpenProfileFromOrigin("landing")}
+      />
+      <HelpChatbot />
+    </>
   );
 }
 
